@@ -1,0 +1,161 @@
+INTRODUCTION
+============
+Comcast is in the process of transitioning analog TV to digital transmission.
+In areas where this is happening, they are handing out free Digital To Analog
+(DTA) boxes, typically a Pace DC50X, to allow those customers with analog
+TV's to continue receiving their TV programming.  However, digital TV can bring
+additional complications for the end-user.  Where a customer would typically
+enter "29" on their remote control, the TV would tune to RF frequency number
+29 (255Mhz) and the Discover Channel would appear.  With digital TV, there
+can exist multiple stations at each RF frequency, so you end up with channels
+having numbers such as "119.8".  To ease the end-user, Virtual Channel Tables
+(VCT) are employed so that a user can continue to type "29" when he/she wants
+to watch the Discover Channel.  The VCT tells the TV tune to RF channel
+number 119 and pick out program 8, all invisible to the end-user.  Services
+such as Schedules Direct, Zap2it, etc. also use the virtual channel number (VC)
+when supplying guide data.  Traditionally, full fledged set top boxes (STB)
+contained a POD interface, which is a special tuner that tunes frequencies
+outside of the normal TV spectrum using a modulation not normally associated
+with normal (in-band) TV standards (out-of-band or OOB transmission).
+Normally, VCT's, guide data, encryption keys, etc. are sent to the STB using
+the OOB channel.  However, DTA's are severely cost reduced such that they
+do not contain a POD interface.  To get around this, Comcast is transmitting
+the tables in-band in areas where they have deployed DTA's.  DTA's are also
+incapable of encryption, so stations intended for them are sent "in the clear".
+
+This program is intended to find and read these tables using supported hardware.
+These tables appear to adhere to the ANSI/SCTE 65 standard.
+
+FINDING THE TABLES
+==================
+Do:
+	./scte65scan itfile > tables.txt
+
+Where 'itfile' is 'us-Cable-Standard-center-frequencies-QAM256' or one
+of your own choosing if not appropriate.  On Fedora machines, other initial
+tuning files can be found at /usr/share/dvb-apps/atsc/ and on Ubuntu
+machines at /usr/share/doc/dvb-utils/examples/scan/atsc.
+
+If you think you can make it prettier from a spreadsheet, do:
+	./scte65scan -f2 itfile > tables.csv
+
+Cable providers typically transmit local Hi-Def broadcast stations in the clear.
+However, DTA's are not capable of HD so these are not included in the tables.
+Local broadcast stations instead use ATSC standard PSIP information.  Add '-p'
+if you have HDTV and/or want scte65scan to also scan for PSIP VCT's.
+
+FINDING WHICH TABLE IS YOURS
+============================
+Looking at the resulting tables, you'll probably notice that there is more than
+one map.  You'll have to determine which one is correct and note the VCT_ID.
+If you already have STB or DTA, you can bring up a diagnostic page that tells
+which VCT_ID to use.  The Pace DC50X screen with the VCT_ID looks like this:
+http://picasaweb.google.com/virgegx/ComcastDTAUnboxing#5276142959144255586
+
+If you don't have that information, unfortunately there currently isn't any
+way to get it automatically.  However, you can sometimes eliminate some maps
+by inspection.  For example, if a map contains a station with callsign
+"Shelbyville Public Access" and you don't live in Shelbyville, then that
+map is probably not yours.  Similarly, if you have a map that has TBS
+associated with VC 28 but you see a home shopping network at channel 28
+on your analog TV or your TV guide, then that map is also probably not yours.
+
+VERIFYING THE VCT_ID WITH MYTHTV
+================================
+First, back up the database using:
+	msyqldump mythconverg > mythbackup.sql
+
+Depending how your database is set up, you may need to add '-u user' and/or
+'-p password' after 'msyqldump'.
+
+If you mess up, you can restore using
+	msyql mythconverg < mythbackup.sql
+
+Depending how your database is set up, you may need to add '-u user' and/or
+'-p password' after 'msyql'.
+
+Do:
+	./scte65scan -f3 > allchannels.sql
+(add 'itfile' if the tuner isn't already tuned in)
+
+If your clearQAM card/device isn't the first card in your card list, you can
+specify the sourceid of the card by using the comma notation, e.g.:
+	./scte65scan -f3,2 itfile > myth-svct.sql
+
+if the sourceid of your card is 2.
+
+Then do:
+	csplit -b %02d.sql -f vct -z allchannels.sql "/^-- WARNING/" {*}
+
+Except for vct00.sql, examine the top of each vct??.sql file for VCT_ID's
+you have already determined to be inappropriate. Then do:
+	mysql mythconverg < vct00.sql
+	mysql mythconverg < vct01.sql
+
+If you have already determined that vct01.sql is not an appropriate VCT_ID
+then go onto the next one that may be (e.g. vct02.sql).
+
+If you haven't already, configure your lineup and run mythfilldatabase.
+From MythTV, start up LiveTV and surf the channels.  If the programming
+matches what's displayed in the OSD, then you have the correct table.  Make
+a note of the VCT_ID at the top of the vct??.sql file for future reference.
+
+If the programming you are surfing doesn't match what's displayed in the OSD,
+exit LiveTV, open an SSH session to your Mythbox, import the next vct??.sql
+file (i.e. 'mythsql mythconverg < vct02.sql' if continuing the step above),
+and start surfing again.  Repeat as necessary until you find a match.
+
+VERIFYING THE VCT_ID WITH MPLAYER
+=================================
+If you want to test which map is yours, do:
+	./scte65scan -f1 -n1 itfile > allchannels.conf
+(you can leave off 'itfile' if the tuner is already tuned in)
+
+Then do:
+	csplit -b %02d.conf -f channels -z allchannels.conf "/^#end/1" {*}
+
+This creates a different channels.conf file for each map.  You can test-watch
+a channel in the map by doing:
+	mplayer dvb://'vc' -dvbin file=channels00.conf
+
+where 'vc' is the virtual channel number you want to test (e.g. '2', '3', etc.)
+If what you see looks like a station with the callsign/name associated with
+the VC, then you have a match.
+
+Repeat this for several VC's and all the channels??.conf files until you find
+the correct file, then make a note of the VCT_ID at the top of that file.
+
+NOTE: mplayer currrently has a bug where the '-dvbin file=...' option is
+totally hosed.  Until they fix it, you'll have to do this instead:
+	cp channels00.conf ~/.mplayer/channels.conf
+
+IMPORTING A SPECIFIC VCT_ID INTO MYTHTV
+=======================================
+Do:
+	./scte65scan -p -V your_VCT_ID -f3 itfile > myth-svct.sql
+
+If your clearQAM card/device isn't the first card in your card list, you can
+specify the sourceid of the card by using the comma notation, e.g.:
+	./scte65scan -p -V your_VCT_ID -f3,2 itfile > myth-svct.sql
+
+if the sourceid of your card is 2.
+
+Back up your database by doing:
+	mysqldump mythconverg > mythbak.sql
+
+Depending how your database is set up, you may need to add '-u user' and/or
+'-p password' after 'msyqldump'
+
+Look over myth-svct-sql and make sure everything looks right, then do:
+	mysql mythconverg < myth-svct.sql
+
+Again, you may need '-u user' and/or '-p password'
+
+UPDATING MYTHTV WHEN THE VIRTUAL CHANNEL MAP CHANGES
+====================================================
+Cable providers are known to physically re-arrange channels from time
+to time.  If the provider is using profile 2 of SCTE-65, there will be
+a version number associated with each table and this number should change
+when the table changes.  To update MythTV with these changes use:
+	./scte65scan -p -V your_VCT_ID -f4,2 itfile > myth-svct.sql
+	mysql [-u user -p password] mythconverg < myth-svct.sql

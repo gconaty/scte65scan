@@ -1,0 +1,3 @@
+Verify HDHR support
+Fix build system (use autoconf?)
+This code would look a lot nicer in C++

@@ -1,0 +1,13 @@
+LINUX OR WINDOWS
+================
+Run 'make'.
+
+CROSS-COMPILING TO WINDOWS FROM LINUX
+=====================================
+Run 'CC=i386-mingw32-gcc make'
+
+COMPILING WITH HDHOMERUN SUPPORT
+================================
+Get libhdhomerun_20090415.tgz from Silicon Dust
+Untar in this directory creating ./libhdhomerun in the process.
+Run 'make -f Makefile.hdhr'
