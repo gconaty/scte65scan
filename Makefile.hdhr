@@ -11,7 +11,7 @@ LIBOBJS += $(HDHR_DIR)/hdhomerun_device.o
 
 OBJS = scte65scan.o tunerdmx.o
 
-CFLAGS += -O2 -DHDHR
+CFLAGS += -O2 -DHDHR -I./libhdhomerun
 LDFLAGS += -lpthread
 
 ifeq ($(OS),Windows_NT)

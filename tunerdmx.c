@@ -48,7 +48,7 @@ static void open_hdhr(char *idstring)
   if (!hd) {
     hd = hdhomerun_device_create_from_str(idstring, NULL);
     if (!hd) {
-      fprintf(stderr, "invalid HDHR device id: %s\n", id_str);
+      fprintf(stderr, "invalid HDHR device id: %s\n", idstring);
       exit(-1);
     }
     uint32_t device_id_requested = hdhomerun_device_get_device_id_requested(hd);
@@ -169,7 +169,7 @@ demux_start(struct dmx_desc *d)
     }
 
     if (ret_err) {
-      fprintf(stderr, "%s\n", ret_error);
+      fprintf(stderr, "%s\n", ret_err);
       return 1;
     }
 
@@ -379,7 +379,7 @@ tuner_tune(struct tuner_desc *t, struct transponder *tp)
     }
 
     if (ret_err) {
-      fprintf(stderr, "%s\n", ret_error);
+      fprintf(stderr, "%s\n", ret_err);
       return 1;
     }
 
@@ -410,19 +410,18 @@ tuner_checklock(struct tuner_desc *t)
 #ifdef HDHR
     char *ret_err, *ret_val, cmd[256], *lock;
 
-    snprintf(cmd, sizeof(cmd), "/tuner0/channel");
-    snprintf(arg, sizeof(arg), "%s:%d", tp->modulation, tp->frequency);
-    if (hdhomerun_device_get_var(hd, cmd, &ret_val, &ret_error) < 0) {
+    snprintf(cmd, sizeof(cmd), "/tuner0/status");
+    if (hdhomerun_device_get_var(hd, cmd, &ret_val, &ret_err) < 0) {
       fprintf(stderr, "Error checking lock on HDHomerun\n");
       return 0;
     }
 
-    if (ret_error) {
-      fprintf(stderr, "%s\n", ret_error);
+    if (ret_err) {
+      fprintf(stderr, "%s\n", ret_err);
       return 0;
     }
     lock= strstr(ret_val, "lock=");
-    lock= strchr(lock, "=");
+    lock= strchr(lock, '=');
     lock++;
 
     // TODO: What does HDHR say when it's not locked???
