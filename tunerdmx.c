@@ -72,6 +72,11 @@ static void open_hdhr(char *idstring)
 #endif
 }
 
+// sbuf = section buf (destination)
+// slen = size of section buf
+// pbuf = packet buf (source)
+// plen = number of bytes in pbuf
+// return 1 for section available, 0 for not
 static int
 pkt_to_section(unsigned char *sbuf, int slen, unsigned char *pbuf, int plen)
 {
@@ -87,6 +92,9 @@ pkt_to_section(unsigned char *sbuf, int slen, unsigned char *pbuf, int plen)
     }
     ringbuf[tail] = pbuf[i];
     tail = (tail +1) % sizeof(ringbuf);
+    if (tail == head) {
+      fatalp("ringbuffer overflow!\n");
+    }
   }
 
   rlen = (tail >= head) ? (tail - head) : (tail + sizeof(ringbuf) - head);
@@ -243,24 +251,27 @@ demux_read(struct dmx_desc *d, unsigned char *sbuf, int slen)
 {
   if (INFILE == d->type) {
     time_t timeout = time(NULL) + d->timeout + 1;
-    int done=0;
-    do {
+    int n, done = pkt_to_section(sbuf, slen, NULL, 0);
+    while (done == 0 && time(NULL) < timeout) {
+      //ringbuf empty, so fread more
       char pbuf[188];
-      if (fread(pbuf, 1, 188, d->fp) < 188) {
+      int n=fread(pbuf, 1, sizeof(pbuf), d->fp);
+      if (n < 188) {
         warningp("infile EOF\n");
         return -2;
       }
       // PID filter
       if ((((pbuf[1] << 8) | pbuf[2]) & 0x1fff) != d->pid)
         continue;
-      done = pkt_to_section(sbuf, slen, pbuf, 188);
-    } while (done == 0 && time(NULL) < timeout);
+      done = pkt_to_section(sbuf, slen, pbuf, n);
+    }
     return done ? ((((sbuf[1]<<8) | sbuf[2]) & 0xfff) +3) : -1;
   } else if (HDHOMERUN == d->type) {
 #ifdef HDHR
     time_t timeout = time(NULL) + d->timeout + 1;
-    int done=0;
-    do {
+    // clear out any remaining bytes in ringbuf before recv'ing new ones
+    int done = pkt_to_section(sbuf,slen, NULL, 0);
+    while (done == 0 && time(NULL) < timeout) {
       size_t plen;
       verbosedebugp("HDHR stream receive\n");
       uint8_t *pbuf = hdhomerun_device_stream_recv(hd, VIDEO_DATA_BUFFER_SIZE_1S, &plen);
@@ -270,7 +281,7 @@ demux_read(struct dmx_desc *d, unsigned char *sbuf, int slen)
         verbosedebugp("Got %d bytes from HDHR\n", plen);
         done = pkt_to_section(sbuf, slen, pbuf, plen);
       }
-    } while (done == 0 && time(NULL) < timeout);
+    } 
     return done ? ((((sbuf[1]<<8) | sbuf[2]) & 0xfff) +3) : -1;
 #endif
   } else {
