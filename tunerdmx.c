@@ -312,6 +312,7 @@ demux_open(unsigned char *buf, int pid, int timeout, struct dmx_desc *d, tuners_
     d->pid = pid;
     d->timeout = timeout;
     open_hdhr(buf);
+    return 0;
   } else {
 #ifdef WIN32
 #else
@@ -348,6 +349,7 @@ int tuner_open(char *buf, struct tuner_desc *t, tuners_t type)
     return 0;
   } else if (HDHOMERUN == type) {
     open_hdhr(buf);
+    return 0;
   } else {
 #ifdef WIN32
 #else
