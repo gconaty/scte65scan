@@ -78,7 +78,7 @@ static void open_hdhr(char *idstring)
 // plen = number of bytes in pbuf
 // return 1 for section available, 0 for not
 static int
-pkt_to_section(unsigned char *sbuf, int slen, unsigned char *pbuf, int plen)
+pkt_to_section(unsigned char *sbuf, int slen, unsigned char *pbuf, int plen, int pidfilter)
 {
   static unsigned char ringbuf[RINGBUFSIZE];
   static int head=0, tail=0, sbuflen=0, lastcc=-1;
@@ -104,14 +104,14 @@ pkt_to_section(unsigned char *sbuf, int slen, unsigned char *pbuf, int plen)
       int tei  = ringbuf[(head+1)%sizeof(ringbuf)] & 0x80;
       int pusi = ringbuf[(head+1)%sizeof(ringbuf)] & 0x40;
       //int pri  = ringbuf[(head+1)%sizeof(ringbuf)] & 0x20;
-      //int pid  = ((ringbuf[(head+1)%sizeof(ringbuf)] << 8) | ringbuf[(head+2)%sizeof(ringbuf)] & 0x1fff);
+      int pid  = ((ringbuf[(head+1)%sizeof(ringbuf)] << 8) | ringbuf[(head+2)%sizeof(ringbuf)]) & 0x1fff;
       int tsc  = ringbuf[(head+3)%sizeof(ringbuf)] & 0xc0;
       int afc  = (ringbuf[(head+3)%sizeof(ringbuf)] & 0x30) >> 4;
       int cc   = ringbuf[(head+3)%sizeof(ringbuf)] & 0x0f;
 
       if (lastcc != -1 && cc != ((lastcc+1) & 0xf))
         warningp("Continuity interruption\n");
-      if (pusi && !tei && !tsc && afc == 1) {
+      if (pusi && !tei && !tsc && afc == 1 && pid == pidfilter) {
         state = GET_SECT;
         sbuflen=0;
         break;
@@ -126,11 +126,17 @@ pkt_to_section(unsigned char *sbuf, int slen, unsigned char *pbuf, int plen)
       //int tei  = ringbuf[(head+1)%sizeof(ringbuf)] & 0x80;
       //int pusi = ringbuf[(head+1)%sizeof(ringbuf)] & 0x40;
       //int pri  = ringbuf[(head+1)%sizeof(ringbuf)] & 0x20;
-      //int pid  = ((ringbuf[(head+1)%sizeof(ringbuf)] << 8) | ringbuf[(head+2)%sizeof(ringbuf)] & 0x1fff);
+      int pid  = ((ringbuf[(head+1)%sizeof(ringbuf)] << 8) | ringbuf[(head+2)%sizeof(ringbuf)]) & 0x1fff;
       //int tsc  = ringbuf[(head+3)%sizeof(ringbuf)] & 0xc0;
       //int afc  = (ringbuf[(head+3)%sizeof(ringbuf)] & 0x30) >> 4;
       int cc   = ringbuf[(head+3)%sizeof(ringbuf)] & 0x0f;
       int sectionlen, j;
+
+      if (pid != pidfilter) {
+        head = (head + 188) % sizeof(ringbuf);
+        rlen -= 188;
+        continue;
+      }
 
       if (lastcc != -1 && cc != ((lastcc+1) & 0xf)) {
         warningp("Continuity interruption\n");
@@ -159,8 +165,8 @@ pkt_to_section(unsigned char *sbuf, int slen, unsigned char *pbuf, int plen)
           head = (head + 188) % sizeof(ringbuf);
         return 1;
       }
-    head = (head + 188) % sizeof(ringbuf);
-    rlen -= 188;
+      head = (head + 188) % sizeof(ringbuf);
+      rlen -= 188;
     } // while rlen>187
   } // if get_sect
   return 0;
@@ -251,7 +257,7 @@ demux_read(struct dmx_desc *d, unsigned char *sbuf, int slen)
 {
   if (INFILE == d->type) {
     time_t timeout = time(NULL) + d->timeout + 1;
-    int n, done = pkt_to_section(sbuf, slen, NULL, 0);
+    int n, done = pkt_to_section(sbuf, slen, NULL, 0, d->pid);
     while (done == 0 && time(NULL) < timeout) {
       //ringbuf empty, so fread more
       char pbuf[188];
@@ -260,18 +266,15 @@ demux_read(struct dmx_desc *d, unsigned char *sbuf, int slen)
         warningp("infile EOF\n");
         return -2;
       }
-      // PID filter
-      if ((((pbuf[1] << 8) | pbuf[2]) & 0x1fff) != d->pid)
-        continue;
-      done = pkt_to_section(sbuf, slen, pbuf, n);
+      done = pkt_to_section(sbuf, slen, pbuf, n, d->pid);
     }
     return done ? ((((sbuf[1]<<8) | sbuf[2]) & 0xfff) +3) : -1;
   } else if (HDHOMERUN == d->type) {
 #ifdef HDHR
     time_t timeout = time(NULL) + d->timeout + 1;
-    // clear out any remaining bytes in ringbuf before recv'ing new ones
-    int done = pkt_to_section(sbuf,slen, NULL, 0);
+    int done = pkt_to_section(sbuf,slen, NULL, 0, d->pid);
     while (done == 0 && time(NULL) < timeout) {
+      //ringbuf empty, so fread more
       size_t plen;
       verbosedebugp("HDHR stream receive\n");
       uint8_t *pbuf = hdhomerun_device_stream_recv(hd, VIDEO_DATA_BUFFER_SIZE_1S, &plen);
@@ -279,7 +282,7 @@ demux_read(struct dmx_desc *d, unsigned char *sbuf, int slen)
         usleep(64 * 1000);
       else {
         verbosedebugp("Got %d bytes from HDHR\n", plen);
-        done = pkt_to_section(sbuf, slen, pbuf, plen);
+        done = pkt_to_section(sbuf, slen, pbuf, plen, d->pid);
       }
     } 
     return done ? ((((sbuf[1]<<8) | sbuf[2]) & 0xfff) +3) : -1;
