@@ -21,6 +21,10 @@
  *
  */
 
+// ring buffer used for devices returning TS pkts instead of
+// whole sections (namely stdin and hdhomerun)
+#define RINGBUFSIZE 65536
+
 typedef enum {INFILE, LINUX_DVB, WINDOWS_BDA, HDHOMERUN} tuners_t;
 
 struct dmx_desc {

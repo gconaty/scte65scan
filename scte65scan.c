@@ -1323,14 +1323,19 @@ main (int argc, char **argv)
 #endif
   }
 
+  verbosep("Demux device: %s, type=%d\n", dmx_devname, usetuner);
+  verbosep("Tuner device: %s, type=%d\n", fe_devname, usetuner);
   if (demux_open(dmx_devname, 0x1ffc, timeout, &scte_dmx, usetuner))
     exit (-1);
 
-  if (psip)
+  if (psip) {
+    verbosep("Adding PSIP demux\n");
     if (demux_open(dmx_devname, 0x1ffb, timeout, &psip_dmx, usetuner))
       exit(-1);
+  }
 
   if (t_list) {
+    debugp("Opening tuner %s (type %d)\n", fe_devname, usetuner);
     if (tuner_open(fe_devname, &mytuner, usetuner) )
       exit(-1);
 
@@ -1356,8 +1361,10 @@ main (int argc, char **argv)
       //find_pids(timeout, &scte_pid, &psip_pid);
       if (scte_pid && !scte_stop)
         scte_stop = scte_read_and_parse(&scte_dmx, &outfmt, vctid);
-      if (psip && psip_pid)
+      if (psip && psip_pid) {
+        verbosep("checking for psip...");
         psip_read_and_parse(&psip_dmx, &outfmt, &psip_list);
+      }
       if (scte_stop && !psip)
         break;
 
@@ -1367,8 +1374,10 @@ main (int argc, char **argv)
   // only scan current transponder without tuning frontend
     outfmt.freq = -1;
     scte_read_and_parse(&scte_dmx, &outfmt, vctid);
-    if (psip)
+    if (psip) {
+      verbosep("checking for psip...");
       psip_read_and_parse(&psip_dmx, &outfmt, &psip_list);
+    }
   }
   if (psip)
     psip_output_tables(&outfmt, psip_list);
