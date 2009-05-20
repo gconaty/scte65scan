@@ -417,9 +417,12 @@ tuner_tune(struct tuner_desc *t, struct transponder *tp)
     return 0;
   } else if (HDHOMERUN == t->type) {
 #ifdef HDHR
-    char *ret_err, arg[256], cmd[256];
+    char *ret_err, arg[256], cmd[256], *cptr;
 
     snprintf(cmd, sizeof(cmd), "/tuner0/channel");
+    // HDHR seems to only want lower case
+    for (cptr=tp->modulation; *cptr; cptr++)
+      *cptr=tolower(*cptr);
     snprintf(arg, sizeof(arg), "%s:%d", tp->modulation, tp->frequency);
     debugp("HDHR set var cmd=%s, arg=%s\n", cmd, arg);
     if (hdhomerun_device_set_var(hd, cmd, arg, NULL, &ret_err) < 0) {
