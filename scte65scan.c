@@ -327,9 +327,9 @@ psip_output_tables(outfmt_t *outfmt, struct vc_record *psip_list)
     case TXTTABLE_FMT:
       verbosep("outputting PSIP text table\n");
       printf("\nPSIP channels\n");
-      printf("   VC     NAME FREQUENCY   MODULATION PROG\n==========================================\n");
+      printf("   VC     NAME  FREQUENCY   MODULATION PROG\n===========================================\n");
       for (vc=psip_list; vc; vc=vc->next)
-        printf("%3d.%-2d %7s %9dhz %7s     %d\n", vc->psip_major, vc->psip_minor, vc->psip_name, vc->cds_ref, psip_modfmt_table[vc->mms_ref & 0x7], vc->prognum);
+        printf("%3d.%-2d %7s %10dhz %7s     %2d\n", vc->psip_major, vc->psip_minor, vc->psip_name, vc->cds_ref, psip_modfmt_table[vc->mms_ref & 0x7], vc->prognum);
       break;
     case CSV_FMT:
       verbosep("outputting PSIP CSV\n");
@@ -405,7 +405,7 @@ void output_txt(outfmt_t *outfmt, struct cds_table *cds, struct mms_table *mms, 
       printf("\n");
     if (outfmt->flags & OUTPUT_VC)
       printf("  VC ");
-    printf("%7s %6s", "CD.PROG", "MODNUM");
+    printf("%7s %2s", "CD.PROG", "M#");
     if (outfmt->flags & OUTPUT_NAME)
       printf(" NAME\n");
     else
@@ -413,12 +413,12 @@ void output_txt(outfmt_t *outfmt, struct cds_table *cds, struct mms_table *mms, 
     if (outfmt->flags & OUTPUT_VC)
       printf("=====");
     if (outfmt->flags & OUTPUT_NAME)
-      printf("=================");
-    printf("===============\n");
+      printf("=====");
+    printf("==========\n");
     for (vc_rec = vcm->vc_list; vc_rec != NULL; vc_rec=vc_rec->next) {
       if (outfmt->flags & OUTPUT_VC)
         printf("%4d ", vc_rec->vc);
-      printf("%4d.%-2d %6d ", vc_rec->cds_ref, vc_rec->prognum, vc_rec->mms_ref);
+      printf("%4d.%-2d %2d", vc_rec->cds_ref, vc_rec->prognum, vc_rec->mms_ref);
       if (outfmt->flags & OUTPUT_NAME) {
         // search NTT for ID match
         struct sns_record *sn_rec = ntt->sns_list;
@@ -439,19 +439,19 @@ void output_txt(outfmt_t *outfmt, struct cds_table *cds, struct mms_table *mms, 
   } // for (vcm...
 
   // print cds
-  printf("CD   FREQUENCY\n");
-  printf("==============\n");
+  printf(" CD    FREQUENCY\n");
+  printf("================\n");
   for (i=0; i< 256; i++) {
     if (cds->written[i])
-      printf("%7d %11dhz\n", i, cds->cd[i]);
+      printf("%3d %10dhz\n", i, cds->cd[i]);
   }
 
   // print mms
-  printf("\n\n\nMODNUM   MODE\n");
-  printf("=========================\n");
+  printf("\n\n\nM#     MODE\n");
+  printf("===========\n");
   for (i=0; i< 256; i++) {
     if (mms->written[i])
-      printf("%7d %7s\n", i, mms->mm[i].modulation_fmt);
+      printf("%2d  %7s\n", i, mms->mm[i].modulation_fmt);
   }
 }
 
