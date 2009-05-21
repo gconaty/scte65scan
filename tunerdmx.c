@@ -40,12 +40,13 @@
 #include "hdhomerun.h"
 
 static struct hdhomerun_device_t *hd = NULL;
-static int hdhrtuner=0;
 #endif
+static int hdhrtuner=0;
 
 void set_hdhr_tuner_number(int n)
 {
   hdhrtuner=n;
+  verbosep("Specifying HDHR /tuner%d\n", hdhrtuner);
 }
 
 static void open_hdhr(char *idstring)

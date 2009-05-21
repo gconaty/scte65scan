@@ -1231,10 +1231,12 @@ main (int argc, char **argv)
 #endif
 #ifdef HDHR
 	case 'H':
-	  hdhr = strdup(optarg);
           comma = strchr(optarg,',');
-          if (comma)
-            set_hdhr_tuner_number( strtol(++comma, NULL, 0) );
+          if (comma) {
+            *comma++='\0';
+            set_hdhr_tuner_number( strtol(comma, NULL, 0) );
+          }
+	  hdhr = strdup(optarg);
 	  break;
 #endif
 	case 'i':
