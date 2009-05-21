@@ -508,7 +508,7 @@ void output_mythsql_setup(outfmt_t *outfmt, struct cds_table *cds, struct mms_ta
   printf("-- Frequency table from SCTE-65 CDS\n");
   for (i=0; i< 256; i++) {
     if (cds->written[i])
-      printf("INSERT INTO dtv_multiplex SET mplexid=%d,frequency=%d,modulation='qam256',sourceid=%d;\n", i, cds->cd[i], outfmt->myth_srcid);
+      printf("INSERT INTO dtv_multiplex SET mplexid=%d,frequency=%d,modulation='qam_256',sourceid=%d;\n", i, cds->cd[i], outfmt->myth_srcid);
   }
 
   printf("\n\n\n");
