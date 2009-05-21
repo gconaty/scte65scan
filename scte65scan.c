@@ -1175,7 +1175,7 @@ usage (FILE * output, const char *myname)
 	   "	-F N	use DVB /dev/dvb/adapter?/frontendN (default N=0)\n"
 #endif
 #ifdef HDHR
-	   "	-H N	use HDHomerun id=N (any HDHomerun=FFFFFFFF)\n"
+	   "	-H N,t	use HDHomerun id=N, tuner=t (any HDHR=FFFFFFFF, default tuner=0)\n"
 #endif
 	   "	-i f	input ts packets from file f ('-' for stdin)\n"
 	   "	-t f,m	scan at (f)hertz, m={QAM64,8VSB,etc} modulation (default=QAM256)\n"
@@ -1232,6 +1232,9 @@ main (int argc, char **argv)
 #ifdef HDHR
 	case 'H':
 	  hdhr = strdup(optarg);
+          comma = strchr(optarg,',');
+          if (comma)
+            set_hdhr_tuner_number( strtol(++comma, NULL, 0) );
 	  break;
 #endif
 	case 'i':

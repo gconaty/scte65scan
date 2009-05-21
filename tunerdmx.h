@@ -60,3 +60,4 @@ int demux_read(struct dmx_desc *, unsigned char *, int);
 int tuner_open(char *, struct tuner_desc*, tuners_t);
 int tuner_tune(struct tuner_desc*, struct transponder *);
 int tuner_checklock(struct tuner_desc*);
+void set_hdhr_tuner_number(int);

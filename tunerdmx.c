@@ -40,8 +40,13 @@
 #include "hdhomerun.h"
 
 static struct hdhomerun_device_t *hd = NULL;
-
+static int hdhrtuner=0;
 #endif
+
+void set_hdhr_tuner_number(int n)
+{
+  hdhrtuner=n;
+}
 
 static void open_hdhr(char *idstring)
 {
@@ -184,7 +189,7 @@ demux_start(struct dmx_desc *d)
 #ifdef HDHR
     char *ret_err, arg[256], cmd[256];
 
-    snprintf(cmd, sizeof(cmd), "/tuner0/filter");
+    snprintf(cmd, sizeof(cmd), "/tuner%d/filter", hdhrtuner);
     snprintf(arg, sizeof(arg), "0x%X", d->pid);
     debugp("Sending set cmd=%s, arg=%s to HDHR\n", cmd, arg);
     if (hdhomerun_device_set_var(hd, cmd, arg, NULL, &ret_err) < 0) {
@@ -197,7 +202,7 @@ demux_start(struct dmx_desc *d)
       return 1;
     }
 
-    snprintf(cmd, sizeof(cmd), "/tuner0");
+    snprintf(cmd, sizeof(cmd), "/tuner%d",hdhrtuner);
     debugp("HDHR set tuner = %s \n", cmd);
     if (hdhomerun_device_set_tuner_from_str(hd, cmd) <= 0) {
       warningp("error setting tuner\n");
@@ -419,7 +424,7 @@ tuner_tune(struct tuner_desc *t, struct transponder *tp)
 #ifdef HDHR
     char *ret_err, arg[256], cmd[256], *cptr;
 
-    snprintf(cmd, sizeof(cmd), "/tuner0/channel");
+    snprintf(cmd, sizeof(cmd), "/tuner%d/channel", hdhrtuner);
     // HDHR seems to only want lower case
     for (cptr=tp->modulation; *cptr; cptr++)
       *cptr=tolower(*cptr);
@@ -465,7 +470,7 @@ tuner_checklock(struct tuner_desc *t)
 #ifdef HDHR
     char *ret_err, *ret_val, cmd[256], *lock;
 
-    snprintf(cmd, sizeof(cmd), "/tuner0/status");
+    snprintf(cmd, sizeof(cmd), "/tuner%d/status", hdhrtuner);
     debugp("Sending to HDHR %s\n", cmd);
     if (hdhomerun_device_get_var(hd, cmd, &ret_val, &ret_err) < 0) {
       warningp("Error checking lock on HDHomerun\n");
