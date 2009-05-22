@@ -62,6 +62,9 @@ on your analog TV or your TV guide, then that map is also probably not yours.
 
 VERIFYING THE VCT_ID WITH MYTHTV
 ================================
+NOTE: More updated documentation on usage with MythTV can probably be found
+on the MythTV wiki.
+
 First, back up the database using:
 	msyqldump mythconverg > mythbackup.sql
 
@@ -78,7 +81,7 @@ Do:
 	./scte65scan -f3 > allchannels.sql
 (add 'itfile' if the tuner isn't already tuned in)
 
-If your clearQAM card/device isn't the first card in your card list, you can
+If your clearQAM card/device isn't doesn't have sourceid=1, you can
 specify the sourceid of the card by using the comma notation, e.g.:
 	./scte65scan -f3,2 itfile > myth-svct.sql
 
@@ -105,8 +108,8 @@ exit LiveTV, open an SSH session to your Mythbox, import the next vct??.sql
 file (i.e. 'mythsql mythconverg < vct02.sql' if continuing the step above),
 and start surfing again.  Repeat as necessary until you find a match.
 
-VERIFYING THE VCT_ID WITH MPLAYER
-=================================
+VERIFYING THE VCT_ID WITH MPLAYER OR VLC
+========================================
 If you want to test which map is yours, do:
 	./scte65scan -f1 -n1 itfile > allchannels.conf
 (you can leave off 'itfile' if the tuner is already tuned in)
@@ -117,6 +120,8 @@ Then do:
 This creates a different channels.conf file for each map.  You can test-watch
 a channel in the map by doing:
 	mplayer dvb://'vc' -dvbin file=channels00.conf
+or
+	vlc channels.conf
 
 where 'vc' is the virtual channel number you want to test (e.g. '2', '3', etc.)
 If what you see looks like a station with the callsign/name associated with
@@ -131,10 +136,13 @@ totally hosed.  Until they fix it, you'll have to do this instead:
 
 IMPORTING A SPECIFIC VCT_ID INTO MYTHTV
 =======================================
+NOTE: More updated documentation on usage with MythTV can probably be found
+on the MythTV wiki.
+
 Do:
 	./scte65scan -p -V your_VCT_ID -f3 itfile > myth-svct.sql
 
-If your clearQAM card/device isn't the first card in your card list, you can
+If your clearQAM card/device doesn't have sourceid=1, you can
 specify the sourceid of the card by using the comma notation, e.g.:
 	./scte65scan -p -V your_VCT_ID -f3,2 itfile > myth-svct.sql
 
@@ -153,6 +161,9 @@ Again, you may need '-u user' and/or '-p password'
 
 UPDATING MYTHTV WHEN THE VIRTUAL CHANNEL MAP CHANGES
 ====================================================
+NOTE: More updated documentation on usage with MythTV can probably be found
+on the MythTV wiki.
+
 Cable providers are known to physically re-arrange channels from time
 to time.  If the provider is using profile 2 of SCTE-65, there will be
 a version number associated with each table and this number should change
