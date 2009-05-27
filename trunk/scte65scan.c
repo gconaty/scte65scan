@@ -315,14 +315,14 @@ psip_output_tables(outfmt_t *outfmt, struct vc_record *psip_list)
         printf(",channum='%d.%d'", vc->psip_major, vc->psip_minor);
         printf(",callsign='%s'", vc->psip_name);
         printf(",serviceid=%d", vc->prognum);
-        printf(",mplexid=(SELECT mplexid FROM dtv_multiplex WHERE frequency=%d);\n", vc->cds_ref);
+        printf(",mplexid=(SELECT mplexid FROM dtv_multiplex WHERE frequency=%d AND sourceid=%d);\n", vc->cds_ref, outfmt->myth_srcid);
       }
       break;
     case MYTH_UP_FMT:
       verbosep("outputting PSIP Myth SQL update script\n");
       printf("\n-- PSIP section\n");
       for (vc=psip_list; vc; vc=vc->next)
-        printf("UPDATE channel SET callsign='%s',serviceid=%d,mplexid=(SELECT mplexid FROM dtv_multiplex WHERE frequency=%d) WHERE channum='%d.%d' AND sourceid=%d;\n",vc->psip_name, vc->prognum, vc->cds_ref, vc->psip_major, vc->psip_minor, outfmt->myth_srcid);
+        printf("UPDATE channel SET callsign='%s',serviceid=%d,mplexid=(SELECT mplexid FROM dtv_multiplex WHERE frequency=%d AND sourceid=%d) WHERE channum='%d.%d' AND sourceid=%d;\n",vc->psip_name, vc->prognum, vc->cds_ref, outfmt->myth_srcid,vc->psip_major, vc->psip_minor, outfmt->myth_srcid);
       break;
     case TXTTABLE_FMT:
       verbosep("outputting PSIP text table\n");
