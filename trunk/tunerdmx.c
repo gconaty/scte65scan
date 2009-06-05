@@ -323,7 +323,7 @@ demux_open(unsigned char *buf, int pid, int timeout, struct dmx_desc *d, tuners_
     d->timeout = timeout;
     if (0==strcmp(buf,"-"))
       d->fp = stdin;
-    else if (NULL == (d->fp=fopen(buf,"r"))) {
+    else if (NULL == (d->fp=fopen(buf,"rb"))) {
       perror(buf);
       exit(-1);
     }

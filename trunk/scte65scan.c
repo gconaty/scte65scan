@@ -34,7 +34,6 @@
 #define SVCT_PERIOD 121
 #define PATH_MAX 256
 
-int verbosity=2;
 
 struct revdesc {
   unsigned char valid;
@@ -169,6 +168,21 @@ static char* scte_modfmt_table[] = {
   "RESERVED"
 };
 
+//ugly global vars
+int verbosity=2;
+
+// these just need to pass from main() to do_scan()
+// but do_scan needs to be void *() (void*) for multithreading
+// perhaps in the future pass it in as (void*)struct*
+char dmx_devname[PATH_MAX];
+char fe_devname[PATH_MAX];
+tuners_t usetuner;
+int timeout=5; 
+struct transponder *t_list = NULL;
+outfmt_t outfmt = {OUTPUT_VC_NAME, TXTTABLE_FMT, -1, 1};
+int vctid=-1;
+char psip = 0;
+
 // vc list formed backwards, so reverse order
 static struct vc_record *reverse_vc_list(struct vc_record *vc_rec) {
   struct vc_record *vc_new=NULL;
@@ -302,40 +316,40 @@ psip_output_tables(outfmt_t *outfmt, struct vc_record *psip_list)
   switch (outfmt->format) {
     case SZAP_FMT:
       verbosep("outputting PSIP SZAP table\n");
-      printf("#PSIP section\n");
+      tblout("#PSIP section\n");
       for (vc=psip_list; vc; vc=vc->next)
-        printf("%s:%d:%s:8192:8192:%d\n",vc->psip_name, vc->cds_ref, psip_modfmt_table[vc->mms_ref & 0x7], vc->prognum);
+        tblout("%s:%d:%s:8192:8192:%d\n",vc->psip_name, vc->cds_ref, psip_modfmt_table[vc->mms_ref & 0x7], vc->prognum);
       break;
     case MYTH_INST_FMT:
       verbosep("outputting PSIP Myth SQL install script\n");
-      printf("\n-- PSIP section\n");
+      tblout("\n-- PSIP section\n");
       for (vc=psip_list; vc; vc=vc->next) {
-        printf("INSERT INTO channel SET sourceid=%d", outfmt->myth_srcid);
-        printf(",chanid=%d%02d0%02d", outfmt->myth_srcid, vc->psip_major, vc->psip_minor);
-        printf(",channum='%d.%d'", vc->psip_major, vc->psip_minor);
-        printf(",callsign='%s'", vc->psip_name);
-        printf(",serviceid=%d", vc->prognum);
-        printf(",mplexid=(SELECT mplexid FROM dtv_multiplex WHERE frequency=%d AND sourceid=%d);\n", vc->cds_ref, outfmt->myth_srcid);
+        tblout("INSERT INTO channel SET sourceid=%d", outfmt->myth_srcid);
+        tblout(",chanid=%d%02d0%02d", outfmt->myth_srcid, vc->psip_major, vc->psip_minor);
+        tblout(",channum='%d.%d'", vc->psip_major, vc->psip_minor);
+        tblout(",callsign='%s'", vc->psip_name);
+        tblout(",serviceid=%d", vc->prognum);
+        tblout(",mplexid=(SELECT mplexid FROM dtv_multiplex WHERE frequency=%d AND sourceid=%d);\n", vc->cds_ref, outfmt->myth_srcid);
       }
       break;
     case MYTH_UP_FMT:
       verbosep("outputting PSIP Myth SQL update script\n");
-      printf("\n-- PSIP section\n");
+      tblout("\n-- PSIP section\n");
       for (vc=psip_list; vc; vc=vc->next)
-        printf("UPDATE channel SET callsign='%s',serviceid=%d,mplexid=(SELECT mplexid FROM dtv_multiplex WHERE frequency=%d AND sourceid=%d) WHERE channum='%d.%d' AND sourceid=%d;\n",vc->psip_name, vc->prognum, vc->cds_ref, outfmt->myth_srcid,vc->psip_major, vc->psip_minor, outfmt->myth_srcid);
+        tblout("UPDATE channel SET callsign='%s',serviceid=%d,mplexid=(SELECT mplexid FROM dtv_multiplex WHERE frequency=%d AND sourceid=%d) WHERE channum='%d.%d' AND sourceid=%d;\n",vc->psip_name, vc->prognum, vc->cds_ref, outfmt->myth_srcid,vc->psip_major, vc->psip_minor, outfmt->myth_srcid);
       break;
     case TXTTABLE_FMT:
       verbosep("outputting PSIP text table\n");
-      printf("\nPSIP channels\n");
-      printf("   VC     NAME  FREQUENCY   MODULATION PROG\n===========================================\n");
+      tblout("\nPSIP channels\n");
+      tblout("   VC     NAME  FREQUENCY   MODULATION PROG\n===========================================\n");
       for (vc=psip_list; vc; vc=vc->next)
-        printf("%3d.%-2d %7s %10dhz %7s     %2d\n", vc->psip_major, vc->psip_minor, vc->psip_name, vc->cds_ref, psip_modfmt_table[vc->mms_ref & 0x7], vc->prognum);
+        tblout("%3d.%-2d %7s %10dhz %7s     %2d\n", vc->psip_major, vc->psip_minor, vc->psip_name, vc->cds_ref, psip_modfmt_table[vc->mms_ref & 0x7], vc->prognum);
       break;
     case CSV_FMT:
       verbosep("outputting PSIP CSV\n");
-      printf("VIRTUAL_CHANNEL,NAME,FREQUENCY,MODULATION,PROG\n");
+      tblout("VIRTUAL_CHANNEL,NAME,FREQUENCY,MODULATION,PROG\n");
       for (vc=psip_list; vc; vc=vc->next)
-        printf("%d.%d,\"%s\",%d,%s,%d\n", vc->psip_major, vc->psip_minor, vc->psip_name, vc->cds_ref, psip_modfmt_table[vc->mms_ref & 0x7], vc->prognum);
+        tblout("%d.%d,\"%s\",%d,%s,%d\n", vc->psip_major, vc->psip_minor, vc->psip_name, vc->cds_ref, psip_modfmt_table[vc->mms_ref & 0x7], vc->prognum);
       break;
     default:
       warningp("Unsupported PSIP output format\n");
@@ -352,25 +366,25 @@ void output_csv(outfmt_t *outfmt, struct cds_table *cds, struct mms_table *mms, 
 
     vcm->vc_list = reverse_vc_list(vcm->vc_list);
 
-    printf("VCT_ID:,%d", vcm->vctid);
+    tblout("VCT_ID:,%d", vcm->vctid);
     if (outfmt->freq != -1)
-      printf(",FOUND_AT:,%dhz", outfmt->freq);
+      tblout(",FOUND_AT:,%dhz", outfmt->freq);
     if (vcm->revdesc.valid)
-      printf(",version:,%d\n", vcm->revdesc.version);
+      tblout(",version:,%d\n", vcm->revdesc.version);
     else
-      printf("\n");
+      tblout("\n");
 
-    printf("\n");
+    tblout("\n");
 
     if (outfmt->flags & OUTPUT_VC)
-      printf("VIRTUAL_CHANNEL,");
+      tblout("VIRTUAL_CHANNEL,");
     if (outfmt->flags & OUTPUT_NAME)
-      printf("NAME,");
-    printf("CARRIER_NUMBER,FREQ,PROGRAM_NUMBER,MODULATION\n");
+      tblout("NAME,");
+    tblout("CARRIER_NUMBER,FREQ,PROGRAM_NUMBER,MODULATION\n");
 
     for (vc_rec = vcm->vc_list; vc_rec != NULL; vc_rec=vc_rec->next) {
       if (outfmt->flags & OUTPUT_VC)
-        printf("%d,", vc_rec->vc);
+        tblout("%d,", vc_rec->vc);
       if (outfmt->flags & OUTPUT_NAME) {
         // search NTT for ID match
         struct sns_record *sn_rec = ntt->sns_list;
@@ -379,12 +393,12 @@ void output_csv(outfmt_t *outfmt, struct cds_table *cds, struct mms_table *mms, 
         if (sn_rec) {
           char tmpstr[257];
           snprintf(tmpstr, sn_rec->namelen + 1, "%s\n", sn_rec->name);
-          printf("\"%s\",", tmpstr);
+          tblout("\"%s\",", tmpstr);
         }
       }
-      printf("%d,%d,%d,%s\n", vc_rec->cds_ref,cds->cd[vc_rec->cds_ref], vc_rec->prognum, mms->mm[vc_rec->mms_ref].modulation_fmt);
+      tblout("%d,%d,%d,%s\n", vc_rec->cds_ref,cds->cd[vc_rec->cds_ref], vc_rec->prognum, mms->mm[vc_rec->mms_ref].modulation_fmt);
     } // for (vc_rec...
-  printf("\n\n\n");
+  tblout("\n\n\n");
   } // for (vcm...
 }
 
@@ -396,29 +410,29 @@ void output_txt(outfmt_t *outfmt, struct cds_table *cds, struct mms_table *mms, 
     struct vc_record *vc_rec;
 
     vcm->vc_list = reverse_vc_list(vcm->vc_list);
-    printf("VCT_ID %d (0x%04x)", vcm->vctid, vcm->vctid);
+    tblout("VCT_ID %d (0x%04x)", vcm->vctid, vcm->vctid);
     if (outfmt->freq != -1)
-      printf(" at %dhz", outfmt->freq);
+      tblout(" at %dhz", outfmt->freq);
     if (vcm->revdesc.valid)
-      printf(", version %d\n", vcm->revdesc.version);
+      tblout(", version %d\n", vcm->revdesc.version);
     else
-      printf("\n");
+      tblout("\n");
     if (outfmt->flags & OUTPUT_VC)
-      printf("  VC ");
-    printf("%7s %2s", "CD.PROG", "M#");
+      tblout("  VC ");
+    tblout("%7s %2s", "CD.PROG", "M#");
     if (outfmt->flags & OUTPUT_NAME)
-      printf(" NAME\n");
+      tblout(" NAME\n");
     else
-      printf("\n");
+      tblout("\n");
     if (outfmt->flags & OUTPUT_VC)
-      printf("=====");
+      tblout("=====");
     if (outfmt->flags & OUTPUT_NAME)
-      printf("=====");
-    printf("==========\n");
+      tblout("=====");
+    tblout("==========\n");
     for (vc_rec = vcm->vc_list; vc_rec != NULL; vc_rec=vc_rec->next) {
       if (outfmt->flags & OUTPUT_VC)
-        printf("%4d ", vc_rec->vc);
-      printf("%4d.%-2d %2d", vc_rec->cds_ref, vc_rec->prognum, vc_rec->mms_ref);
+        tblout("%4d ", vc_rec->vc);
+      tblout("%4d.%-2d %2d", vc_rec->cds_ref, vc_rec->prognum, vc_rec->mms_ref);
       if (outfmt->flags & OUTPUT_NAME) {
         // search NTT for ID match
         struct sns_record *sn_rec = ntt->sns_list;
@@ -427,31 +441,31 @@ void output_txt(outfmt_t *outfmt, struct cds_table *cds, struct mms_table *mms, 
         if (sn_rec) {
           char tmpstr[257];
           snprintf(tmpstr, sn_rec->namelen + 1, "%s\n", sn_rec->name);
-          printf(" %s\n", tmpstr);
+          tblout(" %s\n", tmpstr);
         } else {
-          printf("\n");
+          tblout("\n");
         }
       } else {
-        printf("\n");
+        tblout("\n");
       }
     } // for (vc_rec...
-    printf("\n\n\n");
+    tblout("\n\n\n");
   } // for (vcm...
 
   // print cds
-  printf(" CD    FREQUENCY\n");
-  printf("================\n");
+  tblout(" CD    FREQUENCY\n");
+  tblout("================\n");
   for (i=0; i< 256; i++) {
     if (cds->written[i])
-      printf("%3d %10dhz\n", i, cds->cd[i]);
+      tblout("%3d %10dhz\n", i, cds->cd[i]);
   }
 
   // print mms
-  printf("\n\n\nM#     MODE\n");
-  printf("===========\n");
+  tblout("\n\n\nM#     MODE\n");
+  tblout("===========\n");
   for (i=0; i< 256; i++) {
     if (mms->written[i])
-      printf("%2d  %7s\n", i, mms->mm[i].modulation_fmt);
+      tblout("%2d  %7s\n", i, mms->mm[i].modulation_fmt);
   }
 }
 
@@ -465,21 +479,21 @@ void output_szap(outfmt_t *outfmt, struct cds_table *cds, struct mms_table *mms,
     vcm->vc_list = reverse_vc_list(vcm->vc_list);
 
     // comments
-    printf("#VCT_ID %d (0x%04x)", vcm->vctid, vcm->vctid);
+    tblout("#VCT_ID %d (0x%04x)", vcm->vctid, vcm->vctid);
     if (outfmt->freq != -1)
-      printf(" at %dhz", outfmt->freq);
+      tblout(" at %dhz", outfmt->freq);
     if (vcm->revdesc.valid)
-      printf(", version %d\n", vcm->revdesc.version);
+      tblout(", version %d\n", vcm->revdesc.version);
     else
-      printf("\n");
+      tblout("\n");
 
     for (vc_rec = vcm->vc_list; vc_rec != NULL; vc_rec=vc_rec->next) {
       if (outfmt->flags & OUTPUT_FREQ)
-        printf("%d-", outfmt->freq);
+        tblout("%d-", outfmt->freq);
       if (outfmt->flags & OUTPUT_VC)
-        printf("%d", vc_rec->vc);
+        tblout("%d", vc_rec->vc);
       if ((outfmt->flags & OUTPUT_VC_NAME) == OUTPUT_VC_NAME)
-        printf("-");
+        tblout("-");
       if (outfmt->flags & OUTPUT_NAME) {
         // search NTT for ID match
         struct sns_record *sn_rec = ntt->sns_list;
@@ -488,12 +502,12 @@ void output_szap(outfmt_t *outfmt, struct cds_table *cds, struct mms_table *mms,
         if (sn_rec) {
           char tmpstr[257];
           snprintf(tmpstr, sn_rec->namelen + 1, "%s\n", sn_rec->name);
-          printf("%s", tmpstr);
+          tblout("%s", tmpstr);
         }
       }
-      printf(":%d:%s:8192:8192:%d\n", cds->cd[vc_rec->cds_ref], mms->mm[vc_rec->mms_ref].modulation_fmt, vc_rec->prognum);
+      tblout(":%d:%s:8192:8192:%d\n", cds->cd[vc_rec->cds_ref], mms->mm[vc_rec->mms_ref].modulation_fmt, vc_rec->prognum);
     } // for (vc_rec...
-    printf("#end VCT_ID %d (0x%04x)\n", vcm->vctid, vcm->vctid);
+    tblout("#end VCT_ID %d (0x%04x)\n", vcm->vctid, vcm->vctid);
   } // for (vcm...
 }
 
@@ -503,46 +517,46 @@ void output_mythsql_setup(outfmt_t *outfmt, struct cds_table *cds, struct mms_ta
   int i;
 
   // direct map CDS to dtv_multiplex table
-  printf("-- WARNING: The following line clears out dtv_multiplex table\n");
-  printf("DELETE FROM dtv_multiplex WHERE sourceid=%d;\n", outfmt->myth_srcid);
-  printf("-- Frequency table from SCTE-65 CDS\n");
+  tblout("-- WARNING: The following line clears out dtv_multiplex table\n");
+  tblout("DELETE FROM dtv_multiplex WHERE sourceid=%d;\n", outfmt->myth_srcid);
+  tblout("-- Frequency table from SCTE-65 CDS\n");
   for (i=0; i< 256; i++) {
     if (cds->written[i])
-      printf("INSERT INTO dtv_multiplex SET sistandard='atsc',mplexid=%d,frequency=%d,modulation='qam_256',sourceid=%d;\n", i, cds->cd[i], outfmt->myth_srcid);
+      tblout("INSERT INTO dtv_multiplex SET sistandard='atsc',mplexid=%d,frequency=%d,modulation='qam_256',sourceid=%d;\n", i, cds->cd[i], outfmt->myth_srcid);
   }
 
-  printf("\n\n\n");
+  tblout("\n\n\n");
 
   for (vcm = vcm_list; vcm != NULL; vcm=vcm->next) {
     struct vc_record *vc_rec;
 
     vcm->vc_list = reverse_vc_list(vcm->vc_list);
-    printf("-- WARNING: The following line clears out channel table\n");
-    printf("DELETE FROM channel WHERE sourceid=%d;\n", outfmt->myth_srcid);
-    printf("-- VCT_ID %d (0x%04x)", vcm->vctid, vcm->vctid);
+    tblout("-- WARNING: The following line clears out channel table\n");
+    tblout("DELETE FROM channel WHERE sourceid=%d;\n", outfmt->myth_srcid);
+    tblout("-- VCT_ID %d (0x%04x)", vcm->vctid, vcm->vctid);
     if (outfmt->freq != -1)
-      printf(" at %dhz", outfmt->freq);
+      tblout(" at %dhz", outfmt->freq);
     if (vcm->revdesc.valid)
-      printf(", version %d\n", vcm->revdesc.version);
+      tblout(", version %d\n", vcm->revdesc.version);
     else
-      printf("\n");
+      tblout("\n");
 
     for (vc_rec = vcm->vc_list; vc_rec != NULL; vc_rec=vc_rec->next) {
-      printf("INSERT INTO channel");
-      printf(" SET mplexid=%d", vc_rec->cds_ref);
-      printf(",serviceid=%d", vc_rec->prognum);
-      printf(",freqid=%d", vc_rec->vc);
-      printf(",chanid=%d%03d", outfmt->myth_srcid, vc_rec->vc);
-      printf(",sourceid=%d", outfmt->myth_srcid);
+      tblout("INSERT INTO channel");
+      tblout(" SET mplexid=%d", vc_rec->cds_ref);
+      tblout(",serviceid=%d", vc_rec->prognum);
+      tblout(",freqid=%d", vc_rec->vc);
+      tblout(",chanid=%d%03d", outfmt->myth_srcid, vc_rec->vc);
+      tblout(",sourceid=%d", outfmt->myth_srcid);
 
       if (outfmt->flags & OUTPUT_VC)
-        printf(",channum='%d'", vc_rec->vc);
+        tblout(",channum='%d'", vc_rec->vc);
       else
-        printf(",channum='%d.%d'", vc_rec->cds_ref, vc_rec->prognum);
+        tblout(",channum='%d.%d'", vc_rec->cds_ref, vc_rec->prognum);
 
       // if VC doesn't go into channum, put it in name
       if (!(outfmt->flags & OUTPUT_VC) && outfmt->flags != OUTPUT_VC_NAME)
-        printf(",name='%d'", vc_rec->vc);
+        tblout(",name='%d'", vc_rec->vc);
 
       if (outfmt->flags & OUTPUT_NAME) {
         // search NTT for ID match
@@ -552,18 +566,18 @@ void output_mythsql_setup(outfmt_t *outfmt, struct cds_table *cds, struct mms_ta
         if (sn_rec) {
           char tmpstr[257];
           snprintf(tmpstr, sn_rec->namelen + 1, "%s\n", sn_rec->name);
-          printf(",callsign='%s'", tmpstr);
+          tblout(",callsign='%s'", tmpstr);
         }
       }
-      printf(";\n");
+      tblout(";\n");
       if (0==strcmp("QAM_64", mms->mm[vc_rec->mms_ref].modulation_fmt))
-        printf("UPDATE dtv_multiplex SET modulation='qam_64' WHERE mplexid=%d;\n",vc_rec->cds_ref);
+        tblout("UPDATE dtv_multiplex SET modulation='qam_64' WHERE mplexid=%d;\n",vc_rec->cds_ref);
       else if (0==strcmp("16VSB", mms->mm[vc_rec->mms_ref].modulation_fmt))
-        printf("UPDATE dtv_multiplex SET modulation='16vsb' WHERE mplexid=%d;\n",vc_rec->cds_ref);
+        tblout("UPDATE dtv_multiplex SET modulation='16vsb' WHERE mplexid=%d;\n",vc_rec->cds_ref);
       else if (0==strcmp("8VSB", mms->mm[vc_rec->mms_ref].modulation_fmt))
-        printf("UPDATE dtv_multiplex SET modulation='8vsb' WHERE mplexid=%d;\n",vc_rec->cds_ref);
+        tblout("UPDATE dtv_multiplex SET modulation='8vsb' WHERE mplexid=%d;\n",vc_rec->cds_ref);
     } // for (vc_rec...
-    printf("\n\n\n");
+    tblout("\n\n\n");
   } // for (vcm...
 
 }
@@ -579,27 +593,27 @@ void output_mythsql_update(outfmt_t *outfmt, struct cds_table *cds, struct mms_t
     struct vc_record *vc_rec;
 
     vcm->vc_list = reverse_vc_list(vcm->vc_list);
-    printf("-- VCT_ID %d (0x%04x)", vcm->vctid, vcm->vctid);
+    tblout("-- VCT_ID %d (0x%04x)", vcm->vctid, vcm->vctid);
     if (outfmt->freq != -1)
-      printf(" at %dhz", outfmt->freq);
+      tblout(" at %dhz", outfmt->freq);
     if (vcm->revdesc.valid)
-      printf(", version %d\n", vcm->revdesc.version);
+      tblout(", version %d\n", vcm->revdesc.version);
     else
-      printf("\n");
+      tblout("\n");
 
     for (vc_rec = vcm->vc_list; vc_rec != NULL; vc_rec=vc_rec->next) {
-      printf("UPDATE channel");
-      printf(" SET mplexid=%d", vc_rec->cds_ref);
-      printf(",serviceid=%d", vc_rec->prognum);
+      tblout("UPDATE channel");
+      tblout(" SET mplexid=%d", vc_rec->cds_ref);
+      tblout(",serviceid=%d", vc_rec->prognum);
 
       if (outfmt->flags & OUTPUT_VC)
-        printf(",channum='%d'", vc_rec->vc);
+        tblout(",channum='%d'", vc_rec->vc);
       else
-        printf(",channum='%d.%d'", vc_rec->cds_ref, vc_rec->prognum);
+        tblout(",channum='%d.%d'", vc_rec->cds_ref, vc_rec->prognum);
 
       // if VC doesn't go into channum, put it in name
       if (!(outfmt->flags & OUTPUT_VC) && outfmt->flags != OUTPUT_VC_NAME)
-        printf(",name='%d'", vc_rec->vc);
+        tblout(",name='%d'", vc_rec->vc);
 
       if (outfmt->flags & OUTPUT_NAME) {
         // search NTT for ID match
@@ -609,18 +623,18 @@ void output_mythsql_update(outfmt_t *outfmt, struct cds_table *cds, struct mms_t
         if (sn_rec) {
           char tmpstr[257];
           snprintf(tmpstr, sn_rec->namelen + 1, "%s\n", sn_rec->name);
-          printf(",callsign='%s'", tmpstr);
+          tblout(",callsign='%s'", tmpstr);
         }
       }
-      printf(" WHERE freqid=%d AND sourceid=%d;\n", vc_rec->vc, outfmt->myth_srcid);
+      tblout(" WHERE freqid=%d AND sourceid=%d;\n", vc_rec->vc, outfmt->myth_srcid);
       if (0==strcmp("QAM_64", mms->mm[vc_rec->mms_ref].modulation_fmt))
-        printf("UPDATE dtv_multiplex SET modulation='qam_64' where mplexid=%d;\n",vc_rec->cds_ref);
+        tblout("UPDATE dtv_multiplex SET modulation='qam_64' where mplexid=%d;\n",vc_rec->cds_ref);
       else if (0==strcmp("16VSB", mms->mm[vc_rec->mms_ref].modulation_fmt))
-        printf("UPDATE dtv_multiplex SET modulation='16vsb' where mplexid=%d;\n",vc_rec->cds_ref);
+        tblout("UPDATE dtv_multiplex SET modulation='16vsb' where mplexid=%d;\n",vc_rec->cds_ref);
       else if (0==strcmp("8VSB", mms->mm[vc_rec->mms_ref].modulation_fmt))
-        printf("UPDATE dtv_multiplex SET modulation='8vsb' where mplexid=%d;\n",vc_rec->cds_ref);
+        tblout("UPDATE dtv_multiplex SET modulation='8vsb' where mplexid=%d;\n",vc_rec->cds_ref);
     } // for (vc_rec...
-    printf("\n\n\n");
+    tblout("\n\n\n");
   } // for (vcm...
 }
 
@@ -1195,24 +1209,88 @@ usage (FILE * output, const char *myname)
 	   "	-h	display this help\n", myname);
 }
 
+void *do_scan(void *p) {
+  struct dmx_desc scte_dmx, psip_dmx;
+  struct tuner_desc mytuner;
+  int rdcnt, tuner_locked;
+  int scte_pid = 0x1ffc, psip_pid = 0x1ffb;
+  char scte_stop = 0;
+  struct vc_record *psip_list = NULL;
+
+  verbosep("Demux device: %s, type=%d\n", dmx_devname, usetuner);
+  verbosep("Tuner device: %s, type=%d\n", fe_devname, usetuner);
+
+  if (demux_open(dmx_devname, 0x1ffc, timeout, &scte_dmx, usetuner))
+    exit (-1);
+
+  if (psip) {
+    verbosep("Adding PSIP demux\n");
+    if (demux_open(dmx_devname, 0x1ffb, timeout, &psip_dmx, usetuner))
+      exit(-1);
+  }
+
+  if (t_list) {
+    debugp("Opening tuner %s (type %d)\n", fe_devname, usetuner);
+    if (tuner_open(fe_devname, &mytuner, usetuner) )
+      exit(-1);
+
+    while (t_list) {
+      infop("tuning %dhz", t_list->frequency);
+      if (tuner_tune(&mytuner, t_list) )
+        exit (-1);
+
+      tuner_locked = 0;
+      for (rdcnt=0; rdcnt < timeout && !tuner_locked; rdcnt++) {   
+          infop(".");
+          osindep_msleep (1000);
+          tuner_locked = tuner_checklock(&mytuner);
+      }
+      if (!tuner_locked) {   
+          infop("no lock\n");
+          t_list = t_list->next;
+          continue;
+      }
+      infop("locked...");
+      outfmt.freq = t_list->frequency;
+      //TODO:
+      //find_pids(timeout, &scte_pid, &psip_pid);
+      if (scte_pid && !scte_stop)
+        scte_stop = scte_read_and_parse(&scte_dmx, &outfmt, vctid);
+      if (psip && psip_pid) {
+        verbosep("checking for psip...");
+        psip_read_and_parse(&psip_dmx, &outfmt, &psip_list);
+      }
+      if (scte_stop && !psip)
+        break;
+
+      t_list = t_list->next;
+    } // while
+  } else {
+  // only scan current transponder without tuning frontend
+    outfmt.freq = -1;
+    scte_read_and_parse(&scte_dmx, &outfmt, vctid);
+    if (psip) {
+      verbosep("checking for psip...");
+      psip_read_and_parse(&psip_dmx, &outfmt, &psip_list);
+    }
+  }
+  if (psip)
+    psip_output_tables(&outfmt, psip_list);
+
+#ifdef USEFLTK
+  threaddone();
+#endif
+
+  return p;
+}
+
 int
 main (int argc, char **argv)
 {
-  char dmx_devname[PATH_MAX], fe_devname[PATH_MAX];
   char *comma, *hdhr=NULL, *infilename=NULL;
-  char scte_stop = 0, psip = 0;
   int adapternum = 0, demuxnum = 0, frontendnum = 0;
-  int timeout=5, vctid=-1;
-  struct tuner_desc mytuner;
-  struct dmx_desc scte_dmx, psip_dmx;
   int opt;
-  int rdcnt, scte_pid = 0x1ffc, psip_pid = 0x1ffb;
-  struct transponder *t_list = NULL;
   struct transponder *t_tail;
-  struct vc_record *psip_list = NULL;
-  int tuner_locked;
-  outfmt_t outfmt = {OUTPUT_VC_NAME, TXTTABLE_FMT, -1, 1};
-  tuners_t usetuner;
 
   while ((opt = getopt (argc, argv, "A:D:F:H:i:t:s:V:n:f:qpkvh")) != -1)
     {
@@ -1308,6 +1386,33 @@ main (int argc, char **argv)
   while (optind < argc)
       t_tail = read_itfile(argv[optind++], (t_list) ? &t_tail : &t_list);
 
+#ifdef USEFLTK
+  {
+    tuners_t wiztuner;
+    char *srcstr, *itfname;
+
+    getparmswiz(&wiztuner, &srcstr, &itfname, &vctid, &psip);
+
+    if (INFILE == wiztuner) {
+      infilename=srcstr;
+      debugp("From GUI wizard, using input file = %s\n", infilename);
+      if (0 == strlen(infilename))
+        fatalp("Please enter a input filename when in input file mode");
+    } else if (HDHOMERUN == wiztuner) {
+      hdhr=srcstr;
+      verbosep("From GUI wizard, using HDHR ID = %s\n", hdhr);
+      if (0 == strlen(itfname))
+        fatalp("Please enter an initial tuning file when in HDHR mode");
+      t_tail = read_itfile(itfname, (t_list) ? &t_tail : &t_list);
+    }
+
+    if (-1 != vctid)
+      debugp("filtering on VCT_ID = %d (0x%04x)\n", vctid, vctid);
+
+    outfmt.format = CSV_FMT;
+  }
+#endif
+
   if (infilename) {
     usetuner = INFILE;
     snprintf (dmx_devname, sizeof dmx_devname, "%s", infilename);
@@ -1328,62 +1433,10 @@ main (int argc, char **argv)
 #endif
   }
 
-  verbosep("Demux device: %s, type=%d\n", dmx_devname, usetuner);
-  verbosep("Tuner device: %s, type=%d\n", fe_devname, usetuner);
-  if (demux_open(dmx_devname, 0x1ffc, timeout, &scte_dmx, usetuner))
-    exit (-1);
-
-  if (psip) {
-    verbosep("Adding PSIP demux\n");
-    if (demux_open(dmx_devname, 0x1ffb, timeout, &psip_dmx, usetuner))
-      exit(-1);
-  }
-
-  if (t_list) {
-    debugp("Opening tuner %s (type %d)\n", fe_devname, usetuner);
-    if (tuner_open(fe_devname, &mytuner, usetuner) )
-      exit(-1);
-
-    while (t_list) {
-      infop("tuning %dhz", t_list->frequency);
-      if (tuner_tune(&mytuner, t_list) )
-        exit (-1);
-
-      tuner_locked = 0;
-      for (rdcnt=0; rdcnt < timeout && !tuner_locked; rdcnt++) {   
-          infop(".");
-          usleep (1000000);
-          tuner_locked = tuner_checklock(&mytuner);
-      }
-      if (!tuner_locked) {   
-          infop("no lock\n");
-          t_list = t_list->next;
-          continue;
-      }
-      infop("locked...");
-      outfmt.freq = t_list->frequency;
-      //TODO:
-      //find_pids(timeout, &scte_pid, &psip_pid);
-      if (scte_pid && !scte_stop)
-        scte_stop = scte_read_and_parse(&scte_dmx, &outfmt, vctid);
-      if (psip && psip_pid) {
-        verbosep("checking for psip...");
-        psip_read_and_parse(&psip_dmx, &outfmt, &psip_list);
-      }
-      if (scte_stop && !psip)
-        break;
-
-      t_list = t_list->next;
-    } // while
-  } else {
-  // only scan current transponder without tuning frontend
-    outfmt.freq = -1;
-    scte_read_and_parse(&scte_dmx, &outfmt, vctid);
-    if (psip) {
-      verbosep("checking for psip...");
-      psip_read_and_parse(&psip_dmx, &outfmt, &psip_list);
-    }
-  }
-  if (psip)
-    psip_output_tables(&outfmt, psip_list);
+#ifdef USEFLTK
+  dothreads(do_scan);
+#else
+  do_scan(NULL);
+#endif
 }
+
