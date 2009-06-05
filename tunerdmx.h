@@ -52,7 +52,9 @@ struct transponder {
   char *modulation;
 };
 
-
+#ifdef __cplusplus
+extern "C" {
+#endif
 int demux_open(unsigned char *, int, int, struct dmx_desc *, tuners_t);
 int demux_start(struct dmx_desc *);
 int demux_stop(struct dmx_desc *);
@@ -61,3 +63,6 @@ int tuner_open(char *, struct tuner_desc*, tuners_t);
 int tuner_tune(struct tuner_desc*, struct transponder *);
 int tuner_checklock(struct tuner_desc*);
 void set_hdhr_tuner_number(int);
+#ifdef __cplusplus
+}
+#endif

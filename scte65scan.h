@@ -25,12 +25,28 @@
 
 extern int verbosity;
 
-#define printdf(level, fmt...) {if (level <= verbosity) fprintf(stderr, fmt);}
 
+#ifdef USEFLTK
+
+#define tblout addtblout
+
+#define printdf(level, fmt...) {if (level <= verbosity) scanbrowseradd(fmt);}
 #define dprintfp(level, fmt, args...) \
 	printdf(level, "%s:%d: " fmt, __FUNCTION__, __LINE__ , ##args)
+#define fatalp(fmt, args...) {char ls[1024];sprintf(ls, "FATAL: " fmt , ##args); fl_alertc(ls);exit(1);}
 
+#else
+
+#define tblout printf
+#define printdf(level, fmt...) {if (level <= verbosity) fprintf(stderr, fmt);}
+#define dprintfp(level, fmt, args...) \
+	printdf(level, "%s:%d: " fmt, __FUNCTION__, __LINE__ , ##args)
 #define fatalp(fmt, args...) {dprintfp(-1, "FATAL: " fmt , ##args); exit(1);}
+
+#endif
+
+
+
 #define errorp(msg...) printdf(0, "ERROR: " msg)
 #define errornp(msg) printdf(0, "%s:%d: ERROR: " msg ": %d %m\n", __FUNCTION__, __LINE__, errno)
 #define warningp(msg...) printdf(1, "WARNING: " msg)
@@ -39,5 +55,12 @@ extern int verbosity;
 #define moreverbosep(msg...) printdf(4, msg)
 #define debugp(msg...) dprintfp(5, msg)
 #define verbosedebugp(msg...) dprintfp(6, msg)
+
+#ifdef WIN32
+  #include <windows.h>
+  #define osindep_msleep(x) Sleep(x)
+#else
+  #define osindep_msleep(x) usleep(x*1000)
+#endif
 
 #endif
