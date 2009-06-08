@@ -56,8 +56,7 @@ static void open_hdhr(char *idstring)
     debugp("Creating HDHR device from string=%s\n", idstring);
     hd = hdhomerun_device_create_from_str(idstring, NULL);
     if (!hd) {
-      warningp("invalid HDHR device id: %s\n", idstring);
-      exit(-1);
+      fatalp("invalid HDHR device id: %s\n", idstring);
     }
     uint32_t device_id_requested = hdhomerun_device_get_device_id_requested(hd);
     if (!hdhomerun_discover_validate_device_id(device_id_requested)) {
@@ -69,8 +68,7 @@ static void open_hdhr(char *idstring)
     if (!model) {
       warningp("unable to connect to device\n");
       hdhomerun_device_destroy(hd);
-      warningp("exiting\n");
-      exit (-1);
+      fatalp("unable to connect to device\n");
     } else {
       debugp("HDHR device model str = %s\n", model);
     }
@@ -162,7 +160,6 @@ pkt_to_section(unsigned char *sbuf, int slen, unsigned char *pbuf, int plen, int
       }
       if (sbuflen > slen) {
         fatalp("FATAL ERROR: section buffer overflow\n");
-        exit(1);
       }
       sectionlen = ((sbuf[1] <<8) | sbuf[2]) & 0xfff;
       if (sbuflen >= sectionlen) { // got it all
