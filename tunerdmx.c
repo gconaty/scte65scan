@@ -52,26 +52,36 @@ void set_hdhr_tuner_number(int n)
 static void open_hdhr(char *idstring)
 {
 #ifdef HDHR
+  if (hd) // hdhr already open, no need to reopen
+    return;
+
+#ifdef WIN32
+  /* Initialize network socket support. */
+  WORD wVersionRequested = MAKEWORD(2, 0);
+  WSADATA wsaData;
+  int err = WSAStartup(wVersionRequested, &wsaData);
+  if (0 != err)
+    fatalp("Unable to start Winsock DLL 2.0, error %d\n", err)
+#endif
+
+  debugp("Creating HDHR device from string=%s\n", idstring);
+  hd = hdhomerun_device_create_from_str(idstring, NULL);
   if (!hd) {
-    debugp("Creating HDHR device from string=%s\n", idstring);
-    hd = hdhomerun_device_create_from_str(idstring, NULL);
-    if (!hd) {
-      fatalp("invalid HDHR device id: %s\n", idstring);
-    }
-    uint32_t device_id_requested = hdhomerun_device_get_device_id_requested(hd);
-    if (!hdhomerun_discover_validate_device_id(device_id_requested)) {
-      warningp("invalid device id: %08lX\n", (unsigned long)device_id_requested);
-    } else {
-      debugp("HDHR device id: %08lX\n", (unsigned long)device_id_requested);
-    }
-    const char *model = hdhomerun_device_get_model_str(hd);
-    if (!model) {
-      warningp("unable to connect to device\n");
-      hdhomerun_device_destroy(hd);
-      fatalp("unable to connect to device\n");
-    } else {
-      debugp("HDHR device model str = %s\n", model);
-    }
+    fatalp("invalid HDHR device id: %s\n", idstring);
+  }
+  uint32_t device_id_requested = hdhomerun_device_get_device_id_requested(hd);
+  if (!hdhomerun_discover_validate_device_id(device_id_requested)) {
+    warningp("invalid device id: %08lX\n", (unsigned long)device_id_requested);
+  } else {
+    debugp("HDHR device id: %08lX\n", (unsigned long)device_id_requested);
+  }
+  const char *model = hdhomerun_device_get_model_str(hd);
+  if (!model) {
+    warningp("unable to connect to device\n");
+    hdhomerun_device_destroy(hd);
+    fatalp("unable to connect to device\n");
+  } else {
+    debugp("HDHR device model str = %s\n", model);
   }
 #endif
 }
