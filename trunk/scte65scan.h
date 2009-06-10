@@ -33,7 +33,7 @@ extern int verbosity;
 #define printdf(level, fmt...) {if (level <= verbosity) scanbrowseradd(fmt);}
 #define dprintfp(level, fmt, args...) \
 	printdf(level, "%s:%d: " fmt, __FUNCTION__, __LINE__ , ##args)
-#define fatalp(fmt, args...) {char ls[1024];sprintf(ls, "FATAL: " fmt , ##args); fl_alertc(ls);exit(1);}
+#define fatalp(fmt, args...) {fl_alertc("FATAL: " fmt , ##args); exit(1);}
 
 #else
 
