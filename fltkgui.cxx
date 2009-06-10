@@ -337,8 +337,15 @@ void addtblout(char *fmt, ...)
 }
 
 // C interface for C++ function fl_alert()
-void fl_alertc(char *str)
+void fl_alertc(char *fmt, ...)
 {
+  char str[1024];
+  va_list ap;
+
+  va_start(ap,fmt);
+  vsprintf(str, fmt, ap);
+  va_end(ap);
+
   fl_alert(str);
 }
 

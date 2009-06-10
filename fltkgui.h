@@ -30,7 +30,7 @@ void scanbrowseradd(char *, ...);
 void threaddone(void);
 void addtblout(char *, ...);
 void dothreads(void *(*)(void*));
-void fl_alertc(char *msg);
+void fl_alertc(char *msg, ...);
 
 #ifdef __cplusplus
 }
