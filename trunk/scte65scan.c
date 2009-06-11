@@ -32,6 +32,9 @@
 
 // SCTE-65 defines 2 minutes max between S-VCT's
 #define SVCT_PERIOD 121
+// ATSC *implies* 2.5 seconds between C-VCT's
+#define CVCT_PERIOD 3
+#define SVCT_PERIOD 121
 #define PATH_MAX 256
 
 
@@ -262,11 +265,14 @@ psip_read_and_parse(struct dmx_desc *d, outfmt_t *outfmt, struct vc_record **psi
 {
   unsigned char buf[4096];
   int done=0, section_len, n;
+  time_t start_time;
 
   if (demux_start(d))
     exit(1);
 
-  while (!done) {
+  time(&start_time);
+
+  while (!done && ((time(NULL) - start_time) < CVCT_PERIOD)) {
     if ((n=demux_read(d, buf, sizeof(buf))) < 0) {
       infop("PID 0x1ffb timeout\n");
       return 0;
@@ -283,8 +289,10 @@ psip_read_and_parse(struct dmx_desc *d, outfmt_t *outfmt, struct vc_record **psi
       case 0xc9: // CVCT
         done = parse_psip_vct(buf, section_len, psip_list, outfmt->freq);
         break;
+      case 0xc8: // TVCT (we shouldn't be running this on a cable system)
+        warningp("Huh? Detected Terrestial ATSC VCT on Cable system\n");
+        return 0;
       // ignore the following ATSC PSIP tables:
-      case 0xc8: // TVCT (we should be running this on a cable system)
       case 0xc7: // MGT
       case 0xca: // RRT
       case 0xcb: // EIT
