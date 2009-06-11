@@ -292,7 +292,7 @@ demux_read(struct dmx_desc *d, unsigned char *sbuf, int slen)
       verbosedebugp("HDHR stream receive\n");
       uint8_t *pbuf = hdhomerun_device_stream_recv(hd, VIDEO_DATA_BUFFER_SIZE_1S, &plen);
       if (!pbuf)
-        usleep(64 * 1000);
+        osindep_msleep(64);
       else {
         verbosedebugp("Got %d bytes from HDHR\n", plen);
         done = pkt_to_section(sbuf, slen, pbuf, plen, d->pid);
