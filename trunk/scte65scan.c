@@ -214,8 +214,8 @@ parse_psip_vct(unsigned char *buf, int section_len, struct vc_record **psip_list
 
   // short table
   if (section_len < 16) {
-    return 0;
     warningp("bad length PSIP VCT section < 16\n");
+    return 0;
   }
 
   num_channels = buf[9];
