@@ -1,3 +1,5 @@
-Verify HDHR support
+Pop up a dialog box if there's no table to output (FLTK)
+Unknown if win32 is functional
+Smarter SQL to deal with overlapping mplexid's in dtv_multiplex
 Fix build system (use autoconf?)
 This code would look a lot nicer in C++
