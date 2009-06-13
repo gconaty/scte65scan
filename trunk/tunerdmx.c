@@ -22,6 +22,7 @@
  */
 
 #ifndef WIN32
+#include <time.h>
 #include <linux/dvb/frontend.h>
 #include <linux/dvb/dmx.h>
 #include <sys/ioctl.h>
@@ -61,7 +62,7 @@ static void open_hdhr(char *idstring)
   WSADATA wsaData;
   int err = WSAStartup(wVersionRequested, &wsaData);
   if (0 != err)
-    fatalp("Unable to start Winsock DLL 2.0, error %d\n", err)
+    fatalp("Unable to start Winsock DLL 2.0, error %d\n", err);
 #endif
 
   debugp("Creating HDHR device from string=%s\n", idstring);
