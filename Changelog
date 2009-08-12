@@ -2,6 +2,8 @@ xxxx-yy-zz (0.3):
   Wedged in a FLTK GUI for WIN32 users allergic to CLI
       (Linux can use it too but is currently better off without)
   Minor bugfix if using MythSQL and PSIP and more than 1 dtv sourceid
+  Minor bugfix if CDS = 255
+  Format mplexid=XXYYY where XX=sourceid and YYY=CDS (similar to chanids)
 2009-05-20 (0.2.1):
   HDHomerun support debugged (thanks to Mark Knecht!)
   Added option to select HDHR /tuner# (tested working thanks to Brad Fuller)

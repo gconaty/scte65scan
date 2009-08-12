@@ -530,7 +530,7 @@ void output_mythsql_setup(outfmt_t *outfmt, struct cds_table *cds, struct mms_ta
   tblout("-- Frequency table from SCTE-65 CDS\n");
   for (i=0; i< 256; i++) {
     if (cds->written[i])
-      tblout("INSERT INTO dtv_multiplex SET sistandard='atsc',mplexid=%d,frequency=%d,modulation='qam_256',sourceid=%d;\n", i, cds->cd[i], outfmt->myth_srcid);
+      tblout("INSERT INTO dtv_multiplex SET sistandard='atsc',mplexid=%d,frequency=%d,modulation='qam_256',sourceid=%d;\n", (outfmt->myth_srcid * 1000) + i, cds->cd[i], outfmt->myth_srcid);
   }
 
   tblout("\n\n\n");
@@ -551,7 +551,7 @@ void output_mythsql_setup(outfmt_t *outfmt, struct cds_table *cds, struct mms_ta
 
     for (vc_rec = vcm->vc_list; vc_rec != NULL; vc_rec=vc_rec->next) {
       tblout("INSERT INTO channel");
-      tblout(" SET mplexid=%d", vc_rec->cds_ref);
+      tblout(" SET mplexid=%d", (outfmt->myth_srcid * 1000) + vc_rec->cds_ref);
       tblout(",serviceid=%d", vc_rec->prognum);
       tblout(",freqid=%d", vc_rec->vc);
       tblout(",chanid=%d%03d", outfmt->myth_srcid, vc_rec->vc);
@@ -579,11 +579,11 @@ void output_mythsql_setup(outfmt_t *outfmt, struct cds_table *cds, struct mms_ta
       }
       tblout(";\n");
       if (0==strcmp("QAM_64", mms->mm[vc_rec->mms_ref].modulation_fmt))
-        tblout("UPDATE dtv_multiplex SET modulation='qam_64' WHERE mplexid=%d;\n",vc_rec->cds_ref);
+        tblout("UPDATE dtv_multiplex SET modulation='qam_64' WHERE mplexid=%d;\n",(outfmt->myth_srcid * 1000) + vc_rec->cds_ref);
       else if (0==strcmp("16VSB", mms->mm[vc_rec->mms_ref].modulation_fmt))
-        tblout("UPDATE dtv_multiplex SET modulation='16vsb' WHERE mplexid=%d;\n",vc_rec->cds_ref);
+        tblout("UPDATE dtv_multiplex SET modulation='16vsb' WHERE mplexid=%d;\n",(outfmt->myth_srcid * 1000) + vc_rec->cds_ref);
       else if (0==strcmp("8VSB", mms->mm[vc_rec->mms_ref].modulation_fmt))
-        tblout("UPDATE dtv_multiplex SET modulation='8vsb' WHERE mplexid=%d;\n",vc_rec->cds_ref);
+        tblout("UPDATE dtv_multiplex SET modulation='8vsb' WHERE mplexid=%d;\n",(outfmt->myth_srcid * 1000) + vc_rec->cds_ref);
     } // for (vc_rec...
     tblout("\n\n\n");
   } // for (vcm...
@@ -611,7 +611,7 @@ void output_mythsql_update(outfmt_t *outfmt, struct cds_table *cds, struct mms_t
 
     for (vc_rec = vcm->vc_list; vc_rec != NULL; vc_rec=vc_rec->next) {
       tblout("UPDATE channel");
-      tblout(" SET mplexid=%d", vc_rec->cds_ref);
+      tblout(" SET mplexid=%d", (outfmt->myth_srcid * 1000) + vc_rec->cds_ref);
       tblout(",serviceid=%d", vc_rec->prognum);
 
       if (outfmt->flags & OUTPUT_VC)
@@ -636,11 +636,11 @@ void output_mythsql_update(outfmt_t *outfmt, struct cds_table *cds, struct mms_t
       }
       tblout(" WHERE freqid=%d AND sourceid=%d;\n", vc_rec->vc, outfmt->myth_srcid);
       if (0==strcmp("QAM_64", mms->mm[vc_rec->mms_ref].modulation_fmt))
-        tblout("UPDATE dtv_multiplex SET modulation='qam_64' where mplexid=%d;\n",vc_rec->cds_ref);
+        tblout("UPDATE dtv_multiplex SET modulation='qam_64' where mplexid=%d;\n",(outfmt->myth_srcid * 1000) + vc_rec->cds_ref);
       else if (0==strcmp("16VSB", mms->mm[vc_rec->mms_ref].modulation_fmt))
-        tblout("UPDATE dtv_multiplex SET modulation='16vsb' where mplexid=%d;\n",vc_rec->cds_ref);
+        tblout("UPDATE dtv_multiplex SET modulation='16vsb' where mplexid=%d;\n",(outfmt->myth_srcid * 1000) + vc_rec->cds_ref);
       else if (0==strcmp("8VSB", mms->mm[vc_rec->mms_ref].modulation_fmt))
-        tblout("UPDATE dtv_multiplex SET modulation='8vsb' where mplexid=%d;\n",vc_rec->cds_ref);
+        tblout("UPDATE dtv_multiplex SET modulation='8vsb' where mplexid=%d;\n",(outfmt->myth_srcid * 1000) + vc_rec->cds_ref);
     } // for (vc_rec...
     tblout("\n\n\n");
   } // for (vcm...
@@ -749,11 +749,11 @@ int parse_cds(unsigned char *buf, int len, struct cds_table *cds)
 
     n +=5;
     for (j=0; j< num_carriers; j++) {
+      if (index >  255) fatalp("CDS too big; noncompliant datastream?\n");
       cds->cd[index] = freq;
       cds->written[index] = 1;
       debugp("rf channel %d = %dhz\n", index, freq);
       index++;
-      if (index >  255) fatalp("CDS too big; noncompliant datastream?\n");
       freq += freq_spacing;
     }
     // skip CD descriptors (should only be stuffing here anyway)
