@@ -119,6 +119,7 @@ typedef struct {
     CSV_FMT       = 2,
     MYTH_INST_FMT = 3,
     MYTH_UP_FMT   = 4,
+    ITFILE_FMT    = 5,
     INVALID_FMT       // add new formats before this one
   }format;
   unsigned int freq;
@@ -410,6 +411,18 @@ void output_csv(outfmt_t *outfmt, struct cds_table *cds, struct mms_table *mms, 
   } // for (vcm...
 }
 
+void output_itfile(outfmt_t *outfmt, struct cds_table *cds, struct mms_table *mms, struct ntt_table *ntt, struct vcm *vcm_list)
+{
+  int i;
+  // print cds
+  tblout("#Frequencies from CDS table\n\n");
+  for (i=0; i< 256; i++) {
+    if (cds->written[i])
+      tblout("A %10dhz QAM256   # %d\n", cds->cd[i], i);
+  }
+
+}
+
 void output_txt(outfmt_t *outfmt, struct cds_table *cds, struct mms_table *mms, struct ntt_table *ntt, struct vcm *vcm_list)
 {
   struct vcm *vcm = vcm_list;
@@ -668,6 +681,10 @@ void output_tables(outfmt_t *outfmt, struct cds_table *cds, struct mms_table *mm
     case CSV_FMT:
       verbosep("outputting CSV\n");
       output_csv(outfmt, cds, mms, ntt, vcm_list);
+      break;
+    case ITFILE_FMT:
+      verbosep("outputting frequency file\n");
+      output_itfile(outfmt, cds, mms, ntt, vcm_list);
       break;
     default:
       warningp("Unknown output format specified\n");
@@ -1129,6 +1146,8 @@ int scte_read_and_parse(struct dmx_desc *d, outfmt_t *outfmt, int vctid)
           warningp("short NIT, got %d bytes (expected >7)\n", section_len);
         } else if (1 == (buf[6] & 0xf)) {
           done |=parse_cds(buf, section_len, &cds) ? CDS_DONE : 0;
+          if (ITFILE_FMT == outfmt->format && (done & CDS_DONE))
+            done = ALL_DONE;
         } else if (2 == (buf[6] & 0xf)) {
           done |=parse_mms(buf, section_len, &mms) ? MMS_DONE : 0;
         } else {
@@ -1213,6 +1232,7 @@ usage (FILE * output, const char *myname)
 	   "				2=CSV (Comma Separated Values)\n"
 	   "				3=MythTV SQL install script\n"
 	   "				4=MythTV SQL update script\n"
+	   "				5=initial tuning file (use this for PSIP scan)\n"
 	   "	-v/q	verbose/quiet (repeat for more)\n"
 	   "	-h	display this help\n", myname);
 }
