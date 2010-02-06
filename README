@@ -42,7 +42,12 @@ If you think you can make it prettier from a spreadsheet, do:
 Cable providers typically transmit local Hi-Def broadcast stations in the clear.
 However, DTA's are not capable of HD so these are not included in the tables.
 Local broadcast stations instead use ATSC standard PSIP information.  Add '-p'
-if you have HDTV and/or want scte65scan to also scan for PSIP VCT's.
+if you have HDTV and/or want scte65scan to also scan for PSIP VCT's.  However,
+be aware that if you are intending to use the SQL output, you'll need to make
+doubly sure the itfile you use for scanning matches the frequency table in the
+tables that the cable provider (Comcast) transmits.  One way to
+do this is to generate a new itfile by doing:
+	./scte65scan -f5 itfile > itfile.new
 
 FINDING WHICH TABLE IS YOURS
 ============================
