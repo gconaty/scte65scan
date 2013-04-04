@@ -1,0 +1,23 @@
+xxxx-yy-zz (0.3):
+  Wedged in a FLTK GUI for WIN32 users allergic to CLI
+      (Linux can use it too but is currently better off without)
+  Minor bugfixes
+  Format mplexid=XXYYY where XX=sourceid and YYY=CDS (similar to chanids)
+  Added frequency file output option (use this for PSIP scans)
+  Updated to libhdhomerun_20130328
+  Fixed a bug reading VC descriptors 
+  Confirmed working on MSWindows
+2009-05-20 (0.2.1):
+  HDHomerun support debugged (thanks to Mark Knecht!)
+  Added option to select HDHR /tuner# (tested working thanks to Brad Fuller)
+  A few Myth SQL tweaks, verified working (thanks to Jason Gabrielle and Larg)
+  Neatened up txt output
+2009-05-14 (0.2):
+  Compiles under/for Windows
+  Added HDHomerun support (no idea if working; I don't have one)
+  Added PSIP scan
+  Added input file mode (including stdin)
+  Myth SQL tested working
+  Name output now default
+  Cleaned up output layout
+  Added GPL license

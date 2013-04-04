@@ -1,0 +1,46 @@
+HDHR_DIR=./libhdhomerun
+
+LIBOBJS += $(HDHR_DIR)/hdhomerun_pkt.o
+LIBOBJS += $(HDHR_DIR)/hdhomerun_debug.o
+LIBOBJS += $(HDHR_DIR)/hdhomerun_discover.o
+LIBOBJS += $(HDHR_DIR)/hdhomerun_channels.o
+LIBOBJS += $(HDHR_DIR)/hdhomerun_channelscan.o
+LIBOBJS += $(HDHR_DIR)/hdhomerun_control.o
+LIBOBJS += $(HDHR_DIR)/hdhomerun_video.o
+LIBOBJS += $(HDHR_DIR)/hdhomerun_device.o
+
+OBJS = scte65scan.o tunerdmx.o
+
+CFLAGS += -O2 -DHDHR -I$(HDHR_DIR)
+
+ifeq ($(OS),Windows_NT)
+  LIBOBJS += $(HDHR_DIR)/hdhomerun_sock_windows.o
+  LIBOBJS += $(HDHR_DIR)/hdhomerun_os_windows.o
+  BINEXT := .exe
+  LDFLAGS += -liphlpapi -lws2_32
+else
+  LIBOBJS += $(HDHR_DIR)/hdhomerun_sock_posix.o
+  LIBOBJS += $(HDHR_DIR)/hdhomerun_os_posix.o
+  LDFLAGS += -lpthread -lrt
+  ifneq ($(findstring solaris,$(shell echo $$OSTYPE)),)
+    LDFLAGS += -lns -lsocket
+  endif
+  ifneq ($(findstring darwin,$(shell echo $$OSTYPE)),)
+    CFLAGS += -arch i386 -arch ppc
+  endif
+endif
+
+
+all: scte65scan$(BINEXT)
+
+$(LIBOBJS): %.o : %.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJS): %.o : %.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+scte65scan$(BINEXT): $(OBJS) $(LIBOBJS)
+	$(CC) $(CFLAGS) $+ $(LDFLAGS) -o $@
+
+clean:
+	rm -f scte65scan $(LIBOBJS) $(OBJS)

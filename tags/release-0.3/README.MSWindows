@@ -1,0 +1,5 @@
+If you want to access an HDHomerun and you have Windows Firewall enabled,
+you will need to manually add it to the whitelist. From Windows7, hit
+Start->ControlPanel->SystemAndSecurity->WindowsFirewall and click on
+"Allow a program through Windows Firewall" on the left pane. From there,
+press "Change Settings" and then "Allow another program..."

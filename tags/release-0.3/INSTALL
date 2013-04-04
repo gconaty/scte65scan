@@ -1,0 +1,26 @@
+LINUX OR WINDOWS
+================
+Run 'make'.
+
+CROSS-COMPILING TO WINDOWS FROM LINUX
+=====================================
+Run 'CC=x86_64-w64-mingw32-gcc OS=Windows_NT make -f <pick_a_makefile>'
+(Cygwin's i686-w64-mingw32 also works well)
+
+COMPILING WITH HDHOMERUN SUPPORT
+================================
+Get libhdhomerun_20130328.tgz from Silicon Dust
+Untar in this directory creating ./libhdhomerun in the process.
+Run 'make -f Makefile.hdhr'
+
+Note: This has only been tested with v20130328 of libhdhomerun and firmware.
+Silicon Dust has been known to arbitrarily change the API which may break
+the ability to compile.
+
+Note2: Some earlier versions of HDHomerun firmware did not understand
+'qam256' as a modulation setting.  To see if this impacts you, run
+'hdhomerun_config FFFFFFFF set /tuner0/channel qam256:57000000'.
+If it complains about an invalid channel, you will need to use a different
+initial tuning file with 'auto' as a modulation parameter.  This can be
+done using the global search/replace function of your favorite editor or with 
+'sed s/QAM256/auto/ us-Cable-Standard-center-frequencies-QAM256 > hdhr-itfile'
