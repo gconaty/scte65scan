@@ -17,7 +17,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with scte65scan.  If not, see <http://www.gnu.org/licenses/>.
  *
- * tunderdmx.c - hardware/arch dependent stuff (tuner and demuxer)
+ * fltkgui.cxx - FLTK 1.x GUI
  *
  */
 
@@ -260,15 +260,15 @@ while (offset < g_outputbuf.size() ) {
       outputline << rec[2] << " " << rec[3];
       break;
     case 6: // VC, NAME, CDS, FREQ, PROG, MOD
-      if ("VCT_ID" == rec[0]) {// VCT_ID, ####, FOUND_AT, ### version:, ##
+      if ("VCT_ID:" == rec[0]) {// VCT_ID, ####, FOUND_AT, ### version:, ##
         for (int i=0; i<6; i++)
           outputline << rec[i] << " ";
       } else if ("VIRTUAL_CHANNEL" == rec[0]) {
-        outputline << "VC  CDS.PROG NAME                               FREQ/MODULATION";
+        outputline << "VC   CDS.PROG  NAME                               FREQ/MODULATION";
       } else {
         outputline << setw(4)  << left  << rec[0];
         outputline << setw(4)  << right << rec[2] << ".";
-        outputline << setw(4)  << left  << rec[4];
+        outputline << setw(6)  << left  << rec[4];
         outputline << setw(35) << left  << rec[1];
         outputline << rec[3] << "hz/" << rec[5];
       }
@@ -316,8 +316,8 @@ void threaddone(void)
 // (call scanbrowseradd() from childthread to write into this window)
 void makescanbrowser()
 {
-Fl_Window *w = new Fl_Window(300,200, "Scanning...");
-g_scanbrowser = new Fl_Browser(0,0,300,200);
+Fl_Window *w = new Fl_Window(450,200, "Scanning...");
+g_scanbrowser = new Fl_Browser(0,0,450,200);
 w->resizable(g_scanbrowser);
 w->end();
 w->show();

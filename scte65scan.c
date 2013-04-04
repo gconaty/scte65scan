@@ -34,9 +34,8 @@
 #define SVCT_PERIOD 121
 // ATSC *implies* 2.5 seconds between C-VCT's
 #define CVCT_PERIOD 3
-#define SVCT_PERIOD 121
-#define PATH_MAX 256
 
+#define MY_PATH_MAX 256
 
 struct revdesc {
   unsigned char valid;
@@ -178,8 +177,8 @@ int verbosity=2;
 // these just need to pass from main() to do_scan()
 // but do_scan needs to be void *() (void*) for multithreading
 // perhaps in the future pass it in as (void*)struct*
-char dmx_devname[PATH_MAX];
-char fe_devname[PATH_MAX];
+char dmx_devname[MY_PATH_MAX];
+char fe_devname[MY_PATH_MAX];
 tuners_t usetuner;
 int timeout=5; 
 struct transponder *t_list = NULL;
@@ -397,13 +396,12 @@ void output_csv(outfmt_t *outfmt, struct cds_table *cds, struct mms_table *mms, 
       if (outfmt->flags & OUTPUT_NAME) {
         // search NTT for ID match
         struct sns_record *sn_rec = ntt->sns_list;
-        while (sn_rec && sn_rec->id != vc_rec->id && !vc_rec->application)
+        while (sn_rec && (sn_rec->id != vc_rec->id) && !vc_rec->application)
           sn_rec=sn_rec->next;
         if (sn_rec) {
-          char tmpstr[257];
-          snprintf(tmpstr, sn_rec->namelen + 1, "%s\n", sn_rec->name);
-          tblout("\"%s\",", tmpstr);
+          tblout("\"%s\"", sn_rec->name);
         }
+        tblout(",");
       }
       tblout("%d,%d,%d,%s\n", vc_rec->cds_ref,cds->cd[vc_rec->cds_ref], vc_rec->prognum, mms->mm[vc_rec->mms_ref].modulation_fmt);
     } // for (vc_rec...
@@ -440,7 +438,7 @@ void output_txt(outfmt_t *outfmt, struct cds_table *cds, struct mms_table *mms, 
       tblout("\n");
     if (outfmt->flags & OUTPUT_VC)
       tblout("  VC ");
-    tblout("%7s %2s", "CD.PROG", "M#");
+    tblout("%9s %2s", "CD.PROG", "M#");
     if (outfmt->flags & OUTPUT_NAME)
       tblout(" NAME\n");
     else
@@ -449,20 +447,18 @@ void output_txt(outfmt_t *outfmt, struct cds_table *cds, struct mms_table *mms, 
       tblout("=====");
     if (outfmt->flags & OUTPUT_NAME)
       tblout("=====");
-    tblout("==========\n");
+    tblout("============\n");
     for (vc_rec = vcm->vc_list; vc_rec != NULL; vc_rec=vc_rec->next) {
       if (outfmt->flags & OUTPUT_VC)
         tblout("%4d ", vc_rec->vc);
-      tblout("%4d.%-2d %2d", vc_rec->cds_ref, vc_rec->prognum, vc_rec->mms_ref);
+      tblout("%4d.%-4d %2d", vc_rec->cds_ref, vc_rec->prognum, vc_rec->mms_ref);
       if (outfmt->flags & OUTPUT_NAME) {
         // search NTT for ID match
         struct sns_record *sn_rec = ntt->sns_list;
         while (sn_rec && sn_rec->id != vc_rec->id && !vc_rec->application)
           sn_rec=sn_rec->next;
         if (sn_rec) {
-          char tmpstr[257];
-          snprintf(tmpstr, sn_rec->namelen + 1, "%s\n", sn_rec->name);
-          tblout(" %s\n", tmpstr);
+          tblout(" %s\n", sn_rec->name);
         } else {
           tblout("\n");
         }
@@ -521,9 +517,7 @@ void output_szap(outfmt_t *outfmt, struct cds_table *cds, struct mms_table *mms,
         while (sn_rec && sn_rec->id != vc_rec->id && !vc_rec->application)
           sn_rec=sn_rec->next;
         if (sn_rec) {
-          char tmpstr[257];
-          snprintf(tmpstr, sn_rec->namelen + 1, "%s\n", sn_rec->name);
-          tblout("%s", tmpstr);
+          tblout("%s", sn_rec->name);
         }
       }
       tblout(":%d:%s:8192:8192:%d\n", cds->cd[vc_rec->cds_ref], mms->mm[vc_rec->mms_ref].modulation_fmt, vc_rec->prognum);
@@ -585,9 +579,7 @@ void output_mythsql_setup(outfmt_t *outfmt, struct cds_table *cds, struct mms_ta
         while (sn_rec && sn_rec->id != vc_rec->id && !vc_rec->application)
           sn_rec=sn_rec->next;
         if (sn_rec) {
-          char tmpstr[257];
-          snprintf(tmpstr, sn_rec->namelen + 1, "%s\n", sn_rec->name);
-          tblout(",callsign='%s'", tmpstr);
+          tblout(",callsign='%s'", sn_rec->name);
         }
       }
       tblout(";\n");
@@ -642,9 +634,7 @@ void output_mythsql_update(outfmt_t *outfmt, struct cds_table *cds, struct mms_t
         while (sn_rec && sn_rec->id != vc_rec->id && !vc_rec->application)
           sn_rec=sn_rec->next;
         if (sn_rec) {
-          char tmpstr[257];
-          snprintf(tmpstr, sn_rec->namelen + 1, "%s\n", sn_rec->name);
-          tblout(",callsign='%s'", tmpstr);
+          tblout(",callsign='%s'", sn_rec->name);
         }
       }
       tblout(" WHERE freqid=%d AND sourceid=%d;\n", vc_rec->vc, outfmt->myth_srcid);
@@ -901,9 +891,9 @@ int parse_ntt(unsigned char *buf, int len, struct ntt_table *ntt)
     verbosedebugp("extra comcast junk: 0x%04x\n", sn->extra_comcast_junk);
 #endif
     sn->namelen = buf[n++];
-    memcpy(sn->name, &buf[n], sn->namelen);
     memcpy(tmpstr, &buf[n], sn->namelen);
     tmpstr[sn->namelen] = '\0';
+    strcpy(sn->name, tmpstr);
     debugp("%s_ID: 0x%04x=%s\n", sn->app_type ? "App" : "Src", sn->id, tmpstr);
     n+=sn->namelen;
     sn->descriptor_count = buf[n++];
@@ -950,7 +940,7 @@ int parse_ntt(unsigned char *buf, int len, struct ntt_table *ntt)
 
 // fills vc_rec from buf, returns number of bytes processed
 int read_vc(unsigned char *buf, struct vc_record *vc_rec, unsigned char desc_inc) {
-  int n;
+  int i,n;
   vc_rec->vc             = ((buf[0] & 0xf) << 8) | buf[1];
   vc_rec->application    = buf[2] & 0x80;
   vc_rec->path_select    = buf[2] & 0x20;
@@ -958,26 +948,29 @@ int read_vc(unsigned char *buf, struct vc_record *vc_rec, unsigned char desc_inc
   vc_rec->channel_type   = buf[2] & 0xf;
   vc_rec->id             = (buf[3] << 8) | buf[4];
 
-  debugp("vc %4d, %s_ID: 0x%04d, %s\n", vc_rec->vc, vc_rec->application ? "app" : "src", vc_rec->id, vc_rec->channel_type ? "hidden/reserved" : "normal"); 
+  debugp("vc %4d, %s_ID: 0x%04x, %s\n", vc_rec->vc, vc_rec->application ? "app" : "src", vc_rec->id, vc_rec->channel_type ? "hidden/reserved" : "normal"); 
   n=5;
   if (vc_rec->transport_type == 0) {
     vc_rec->cds_ref = buf[n++];
     vc_rec->prognum = (buf[n] << 8) | buf[n+1];
     n+=2;
     vc_rec->mms_ref = buf[n++];
-    debugp("CDS_ref=%d, program=%d, MMS_ref=%d\n", vc_rec->cds_ref, vc_rec->prognum, vc_rec->mms_ref);
+    debugp("  CDS_ref=%d, program=%d, MMS_ref=%d\n", vc_rec->cds_ref, vc_rec->prognum, vc_rec->mms_ref);
   } else {
     vc_rec->cds_ref   = buf[n++];
     vc_rec->scrambled = buf[n] & 0x80;
     vc_rec->video_std = buf[n++] & 0xf;
     n+=2; // 2 bytes of zero
-    debugp("CDS_ref=%d, scrambled=%c, vid_std=%d\n", vc_rec->cds_ref, vc_rec->scrambled ? 'Y' : 'N', vc_rec->video_std);
+    debugp("  CDS_ref=%d, scrambled=%c, vid_std=%d\n", vc_rec->cds_ref, vc_rec->scrambled ? 'Y' : 'N', vc_rec->video_std);
   }
 
   if (desc_inc) {
     vc_rec->desc_cnt = buf[n++];
-    memcpy(vc_rec->desc, &buf[n], vc_rec->desc_cnt);
-    n += vc_rec->desc_cnt;
+    for (i=0; i<vc_rec->desc_cnt; i++) {
+      vc_rec->desc[i] = buf[n++];
+      debugp("  descriptor %d: tag=0x%02x, length=%d, data=(ignored)\n", i, vc_rec->desc[i], buf[n]);
+      n += buf[n] + 1;
+    }
   }
 
   return n;

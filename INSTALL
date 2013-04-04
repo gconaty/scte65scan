@@ -4,15 +4,16 @@ Run 'make'.
 
 CROSS-COMPILING TO WINDOWS FROM LINUX
 =====================================
-Run 'CC=i386-mingw32-gcc make'
+Run 'CC=x86_64-w64-mingw32-gcc OS=Windows_NT make -f <pick_a_makefile>'
+(Cygwin's i686-w64-mingw32 also works well)
 
 COMPILING WITH HDHOMERUN SUPPORT
 ================================
-Get libhdhomerun_20090415.tgz from Silicon Dust
+Get libhdhomerun_20130328.tgz from Silicon Dust
 Untar in this directory creating ./libhdhomerun in the process.
 Run 'make -f Makefile.hdhr'
 
-Note: This has only been tested with v20090415 of libhdhomerun and firmware.
+Note: This has only been tested with v20130328 of libhdhomerun and firmware.
 Silicon Dust has been known to arbitrarily change the API which may break
 the ability to compile.
 
