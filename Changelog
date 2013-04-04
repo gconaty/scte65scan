@@ -1,6 +1,6 @@
-xxxx-yy-zz (0.3):
-  Wedged in a FLTK GUI for WIN32 users allergic to CLI
-      (Linux can use it too but is currently better off without)
+yyyy-mm-dd (x.x):
+2013-04-03 (0.3):
+  Wedged in a FLTK GUI for users allergic to CLI
   Minor bugfixes
   Format mplexid=XXYYY where XX=sourceid and YYY=CDS (similar to chanids)
   Added frequency file output option (use this for PSIP scans)
