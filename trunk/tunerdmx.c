@@ -17,7 +17,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with scte65scan.  If not, see <http://www.gnu.org/licenses/>.
  *
- * tunderdmx.c - hardware/arch dependent stuff (tuner and demuxer)
+ * tunerdmx.c - hardware/arch dependent stuff (tuner and demuxer)
  *
  */
 

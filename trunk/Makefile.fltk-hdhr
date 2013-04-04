@@ -1,5 +1,5 @@
-CC=i386-mingw32msvc-gcc
-CXX=i386-mingw32msvc-g++
+#CC=i686-w64-mingw32-gcc
+#CXX=i686-w64-mingw32-g++
 
 HDHR_DIR=./libhdhomerun
 
@@ -15,12 +15,18 @@ LIBOBJS += $(HDHR_DIR)/hdhomerun_device.o
 OBJS = scte65scan.o tunerdmx.o
 
 CFLAGS += -O2 -DHDHR -I$(HDHR_DIR) -DUSEFLTK
-LDFLAGS += -lpthread -liphlpapi `fltk-config --ldflags`
+LDFLAGS += `fltk-config --ldflags`
 
 ifeq ($(OS),Windows_NT)
+  LIBOBJS += $(HDHR_DIR)/hdhomerun_sock_windows.o
+  LIBOBJS += $(HDHR_DIR)/hdhomerun_os_windows.o
   BINEXT := .exe
-  LDFLAGS += -liphlpapi
+  LDFLAGS += -liphlpapi -lws2_32 -static
 else
+  CFLAGS  += -DHAVE_PTHREAD_H
+  LIBOBJS += $(HDHR_DIR)/hdhomerun_sock_posix.o
+  LIBOBJS += $(HDHR_DIR)/hdhomerun_os_posix.o
+  LDFLAGS += -lpthread -lrt
   ifneq ($(findstring solaris,$(shell echo $$OSTYPE)),)
     LDFLAGS += -lns -lsocket
   endif
